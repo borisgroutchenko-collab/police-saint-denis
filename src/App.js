@@ -78,7 +78,7 @@ const SECTIONS = [
   { key: 'plaintes',      label: '📝 Dépôts de Plainte' },
   { key: 'verbalization', label: '📋 Verbalisation' },
   { key: 'casier',        label: '🗄 Casier Judiciaire' },
-  { key: 'notes',         label: '📌 Notes' },
+  { key: 'notes',         label: '📌 Notes & Informations' },
   { key: 'penal',         label: '📖 Code Pénal' },
   { key: 'effectif',      label: '👮 Effectif' },
 ];

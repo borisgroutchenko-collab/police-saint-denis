@@ -23,10 +23,20 @@ function NoteModal({ note, onClose, onSaved, showNotif }) {
   const [titre, setTitre] = useState(note?.titre || '');
   const [contenu, setContenu] = useState(note?.contenu || '');
   const [couleur, setCouleur] = useState(note?.couleur || 'or');
+  const [photos, setPhotos] = useState(note?.photos || []);
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [lightbox, setLightbox] = useState(null);
+
+  function addPhoto() {
+    if (!photoUrl.startsWith('http')) { showNotif('Le lien doit commencer par http...', true); return; }
+    setPhotos(p => [...p, photoUrl]);
+    setPhotoUrl('');
+    showNotif('Photo ajoutée !');
+  }
 
   async function save() {
     if (!titre.trim()) { showNotif('Le titre est obligatoire', true); return; }
-    const data = { titre: titre.trim(), contenu, couleur, updatedAt: serverTimestamp() };
+    const data = { titre: titre.trim(), contenu, couleur, photos, updatedAt: serverTimestamp() };
     try {
       if (note?.id) {
         await updateDoc(doc(db, 'notes', note.id), data);
@@ -39,9 +49,13 @@ function NoteModal({ note, onClose, onSaved, showNotif }) {
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
   }
 
-  return (
     <div className="modal-overlay open">
       <div className="modal" style={{ maxWidth: 640 }}>
+        {lightbox && (
+          <div className="modal-overlay open" onClick={() => setLightbox(null)} style={{ zIndex: 2000 }}>
+            <img src={lightbox} alt="" style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 3, border: '2px solid var(--gold)' }} />
+          </div>
+        )}
         <div className="modal-title">{note?.id ? '✏ Modifier la note' : '📌 Nouvelle note'}</div>
         <button className="modal-close" onClick={onClose}>✕</button>
 
@@ -80,14 +94,36 @@ function NoteModal({ note, onClose, onSaved, showNotif }) {
         </div>
 
         {/* Contenu */}
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 16 }}>
           <label className="field-label">Contenu</label>
           <textarea
             className="field-textarea"
-            style={{ minHeight: 220, fontFamily: "'Crimson Text', serif", fontSize: 15, lineHeight: 1.7 }}
+            style={{ minHeight: 180, fontFamily: "'Crimson Text', serif", fontSize: 15, lineHeight: 1.7 }}
             placeholder="Rédigez votre note ici..."
             value={contenu} onChange={e => setContenu(e.target.value)}
           />
+        </div>
+
+        {/* Photos */}
+        <div style={{ marginBottom: 20 }}>
+          <label className="field-label">Photos / Images (liens URL)</label>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <input type="url" className="field-input" style={{ flex: 1 }} placeholder="https://..." value={photoUrl} onChange={e => setPhotoUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && addPhoto()} />
+            <button className="btn-blue" onClick={addPhoto} style={{ whiteSpace: 'nowrap' }}>+ Ajouter</button>
+          </div>
+          <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, color: 'rgba(244,237,216,.3)', letterSpacing: 1, marginBottom: 10 }}>
+            Uploadez sur fixitfy.com.tr, imgbb.com ou imgur.com puis collez le lien
+          </div>
+          {photos.length > 0 && (
+            <div className="photo-preview-grid">
+              {photos.map((url, i) => (
+                <div key={i} className="photo-preview">
+                  <img src={url} alt="" onClick={() => setLightbox(url)} onError={e => { e.target.parentElement.style.background = 'rgba(139,26,26,0.3)'; e.target.style.display = 'none'; }} />
+                  <button className="photo-remove" onClick={() => setPhotos(p => p.filter((_, j) => j !== i))}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="actions-row">
@@ -102,6 +138,7 @@ function NoteModal({ note, onClose, onSaved, showNotif }) {
 // ── Vue lecture d'une note ────────────────────────────────────
 function NoteDetail({ note, onBack, onEdit, onDelete }) {
   const c = getCouleur(note.couleur);
+  const [lightbox, setLightbox] = useState(null);
   const dateStr = note.updatedAt?.toDate
     ? note.updatedAt.toDate().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     : note.createdAt?.toDate
@@ -110,6 +147,11 @@ function NoteDetail({ note, onBack, onEdit, onDelete }) {
 
   return (
     <div>
+      {lightbox && (
+        <div className="modal-overlay open" onClick={() => setLightbox(null)}>
+          <img src={lightbox} alt="" style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 3, border: '2px solid var(--gold)' }} />
+        </div>
+      )}
       <button className="back-btn" onClick={onBack}>← Retour aux notes</button>
 
       <div className="card" style={{ background: c.bg, borderColor: c.border }}>
@@ -131,15 +173,25 @@ function NoteDetail({ note, onBack, onEdit, onDelete }) {
         </div>
 
         {note.contenu ? (
-          <div style={{
-            fontSize: 15, color: 'rgba(244,237,216,.9)', lineHeight: 1.85,
-            whiteSpace: 'pre-wrap', fontFamily: "'Crimson Text', serif",
-          }}>
+          <div style={{ fontSize: 15, color: 'rgba(244,237,216,.9)', lineHeight: 1.85, whiteSpace: 'pre-wrap', fontFamily: "'Crimson Text', serif", marginBottom: note.photos?.length ? 20 : 0 }}>
             {note.contenu}
           </div>
         ) : (
-          <div style={{ color: 'rgba(244,237,216,.3)', fontStyle: 'italic', fontSize: 14 }}>
+          <div style={{ color: 'rgba(244,237,216,.3)', fontStyle: 'italic', fontSize: 14, marginBottom: note.photos?.length ? 16 : 0 }}>
             Note vide.
+          </div>
+        )}
+
+        {note.photos && note.photos.length > 0 && (
+          <div style={{ borderTop: `1px solid ${c.border}`, paddingTop: 16 }}>
+            <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'rgba(244,237,216,.4)', letterSpacing: 1, marginBottom: 10 }}>PHOTOS / IMAGES</div>
+            <div className="photo-preview-grid">
+              {note.photos.map((url, i) => (
+                <div key={i} className="photo-preview" style={{ cursor: 'pointer' }} onClick={() => setLightbox(url)}>
+                  <img src={url} alt="" onError={e => { e.target.parentElement.style.background = 'rgba(139,26,26,0.3)'; e.target.style.display = 'none'; }} />
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -251,7 +303,7 @@ export default function Notes({ showNotif }) {
 
       <div className="card">
         <div className="card-title" style={{ justifyContent: 'space-between' }}>
-          <span>📌 Notes</span>
+          <span>📌 Notes & Informations</span>
           <button className="btn-submit" style={{ padding: '8px 20px', fontSize: 13 }} onClick={() => setModal({})}>
             ➕ Nouvelle note
           </button>
