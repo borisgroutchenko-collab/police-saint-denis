@@ -15,15 +15,15 @@ const STATUTS = [
 // ── Helpers ────────────────────────────────────────────────────
 // Synchronise les signalements de plainte dans les casiers des mis en cause.
 // - Pour chaque mis en cause identifié : crée/met à jour casier/{key}/plaintesSingalees/{plainteId}
-// - Si statut = 'classee' et casiersLies vide (blanchi) : supprime le signalement
+// - Si statut = 'classee' : supprime le signalement (blanchi ou clôturé)
 async function syncPlainteCasiers(plainteId, misEnCause, plaintifsStr, date, faits, statut, casiersLies) {
   for (const m of misEnCause) {
     if (m.inconnu || !m.nom) continue;
     const nomComplet = (m.prenom ? m.prenom + ' ' : '') + m.nom;
     const casierKey = nomComplet.toLowerCase().replace(/ /g, '_');
     const sigRef = doc(db, 'casier', casierKey, 'plaintesSignalees', plainteId);
-    const blanchi = statut === 'classee' && (!casiersLies || !casiersLies.includes(casierKey));
-    if (blanchi) {
+    if (statut === 'classee') {
+      // Plainte classée → retire le signalement du casier dans tous les cas
       try { await deleteDoc(sigRef); } catch (e) {}
     } else {
       const casRef = doc(db, 'casier', casierKey);

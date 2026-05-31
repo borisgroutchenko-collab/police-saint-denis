@@ -351,16 +351,15 @@ function DossierDetail({ dossier, infs, enqs, plaintesSignalees, onBack, onReloa
 
       {/* Enquêtes */}
       {/* Plaintes en cours signalées */}
-      {plaintesSignalees && plaintesSignalees.length > 0 && (
+      {plaintesSignalees && plaintesSignalees.filter(p => p.statut === 'ouverte' || p.statut === 'instruite').length > 0 && (
         <div className="card" style={{ marginTop: 16, borderLeft: '4px solid #ffcc44' }}>
-          <div className="card-title" style={{ color: '#ffcc44' }}>📝 Dépôts de Plainte — Enquêtes en cours ({plaintesSignalees.filter(p => p.statut !== 'verbalise').length})</div>
-          {plaintesSignalees.filter(p => p.statut !== 'verbalise').length === 0 && (
-            <div style={{ color: 'rgba(244,237,216,.4)', fontStyle: 'italic', fontSize: 14 }}>Aucune plainte en cours — toutes traitées.</div>
-          )}
-          {plaintesSignalees.filter(p => p.statut !== 'verbalise').map(p => (
+          <div className="card-title" style={{ color: '#ffcc44' }}>
+            📝 Dépôts de Plainte — Enquêtes en cours ({plaintesSignalees.filter(p => p.statut === 'ouverte' || p.statut === 'instruite').length})
+          </div>
+          {plaintesSignalees.filter(p => p.statut === 'ouverte' || p.statut === 'instruite').map(p => (
             <div key={p.id} style={{ background: 'rgba(255,204,68,.06)', border: '1px solid rgba(255,204,68,.25)', borderRadius: 3, padding: '12px 16px', marginBottom: 8 }}>
               <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'rgba(255,204,68,.8)', letterSpacing: 1, marginBottom: 4 }}>
-                📅 {p.date || '—'} — <span style={{ color: '#ffcc44' }}>🟡 Enquête en cours</span>
+                📅 {p.date || '—'} — <span style={{ color: p.statut === 'ouverte' ? '#ff6b6b' : '#ffcc44' }}>{p.statut === 'ouverte' ? '🔴 Ouverte' : '🟡 En instruction'}</span>
               </div>
               <div style={{ fontSize: 14, color: 'var(--paper)', marginBottom: 4 }}>
                 <span style={{ color: '#ff9966' }}>Plaignant(s) :</span> {p.plaintifsStr || '—'}
