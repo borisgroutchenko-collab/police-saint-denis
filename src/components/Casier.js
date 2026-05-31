@@ -100,22 +100,30 @@ function EditModal({ dossierId, infraction, onClose, onSaved, showNotif }) {
   );
 }
 
-// ── Enquête modal ─────────────────────────────────────────────
-function EnqueteModal({ dossierId, onClose, onSaved, showNotif }) {
+// ── Enquête modal (création ET modification) ───────────────────
+function EnqueteModal({ dossierId, enquete, onClose, onSaved, showNotif }) {
   const now = new Date();
   const [form, setForm] = useState({
-    titre: '', localisation: '', contact: '', membres: '',
-    date: now.toISOString().split('T')[0],
-    heure: now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0'),
-    agent: '',
+    titre:        enquete?.titre        || '',
+    localisation: enquete?.localisation || '',
+    contact:      enquete?.contact      || '',
+    membres:      enquete?.membres      || '',
+    date:         enquete?.date         || now.toISOString().split('T')[0],
+    heure:        enquete?.heure        || now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0'),
+    agent:        enquete?.agent        || '',
   });
-  const [photos, setPhotos] = useState([]);
+  const [photos, setPhotos] = useState(enquete?.photos || []);
   const [photoUrl, setPhotoUrl] = useState('');
 
   async function save() {
     try {
-      await addDoc(collection(db, 'casier', dossierId, 'enquetes'), { ...form, photos, createdAt: serverTimestamp() });
-      showNotif("Dossier d'enquête sauvegardé !");
+      if (enquete?.id) {
+        await updateDoc(doc(db, 'casier', dossierId, 'enquetes', enquete.id), { ...form, photos });
+        showNotif("Dossier d'enquête modifié !");
+      } else {
+        await addDoc(collection(db, 'casier', dossierId, 'enquetes'), { ...form, photos, createdAt: serverTimestamp() });
+        showNotif("Dossier d'enquête sauvegardé !");
+      }
       onSaved();
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
   }
@@ -123,13 +131,13 @@ function EnqueteModal({ dossierId, onClose, onSaved, showNotif }) {
   return (
     <div className="modal-overlay open">
       <div className="modal">
-        <div className="modal-title">🔍 Nouveau Dossier d'Enquête</div>
+        <div className="modal-title">{enquete?.id ? "✏ Modifier le dossier d'enquête" : "🔍 Nouveau Dossier d'Enquête"}</div>
         <button className="modal-close" onClick={onClose}>✕</button>
 
         <div className="form-grid three" style={{ marginBottom: 16 }}>
           <div><label className="field-label">Date *</label><input type="date" className="field-input" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></div>
           <div><label className="field-label">Heure</label><input type="time" className="field-input" value={form.heure} onChange={e => setForm(f => ({ ...f, heure: e.target.value }))} /></div>
-          <div><label className="field-label">Agent enquêteur *</label><input type="text" className="field-input" placeholder="Ex: Inspecteur Morgan" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} /></div>
+          <div><label className="field-label">Agent enquêteur</label><input type="text" className="field-input" placeholder="Ex: Inspecteur Morgan" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} /></div>
         </div>
         <div className="form-grid" style={{ marginBottom: 16 }}>
           <div><label className="field-label">Titre de l'enquête</label><input type="text" className="field-input" value={form.titre} onChange={e => setForm(f => ({ ...f, titre: e.target.value }))} /></div>
@@ -159,7 +167,7 @@ function EnqueteModal({ dossierId, onClose, onSaved, showNotif }) {
           </div>
         </div>
         <div className="actions-row">
-          <button className="btn-blue" onClick={save}>💾 Sauvegarder l'enquête</button>
+          <button className="btn-blue" onClick={save}>💾 {enquete?.id ? 'Sauvegarder les modifications' : "Sauvegarder l'enquête"}</button>
           <button className="btn-red" onClick={onClose}>Annuler</button>
         </div>
       </div>
@@ -167,12 +175,25 @@ function EnqueteModal({ dossierId, onClose, onSaved, showNotif }) {
   );
 }
 
+
 // ── Dossier Detail ─────────────────────────────────────────────
 function DossierDetail({ dossier, infs, enqs, onBack, onReload, showNotif }) {
   const [editInf, setEditInf] = useState(null);
   const [showEnquete, setShowEnquete] = useState(false);
   const [lightbox, setLightbox] = useState(null);
+  const [editEnquete, setEditEnquete] = useState(null); // null | enquete object
+  const [plaintesDossier, setPlaintesDossier] = useState([]);
   const d = dossier;
+
+  // Charger les plaintes liées à ce dossier
+  React.useEffect(() => {
+    getDocs(collection(db, 'plaintes')).then(snap => {
+      const lies = snap.docs
+        .map(x => ({ id: x.id, ...x.data() }))
+        .filter(p => Array.isArray(p.casiersLies) && p.casiersLies.includes(d.id));
+      setPlaintesDossier(lies);
+    }).catch(() => {});
+  }, [d.id]);
 
   async function toggleMostWanted() {
     await updateDoc(doc(db, 'casier', d.id), { mostWanted: !d.mostWanted });
@@ -231,7 +252,8 @@ function DossierDetail({ dossier, infs, enqs, onBack, onReload, showNotif }) {
     <div>
       {lightbox && <div className="modal-overlay open" onClick={() => setLightbox(null)}><img src={lightbox} alt="" style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 3, border: '2px solid var(--gold)' }} /></div>}
       {editInf && <EditModal dossierId={d.id} infraction={editInf} onClose={() => setEditInf(null)} onSaved={() => { setEditInf(null); onReload(); }} showNotif={showNotif} />}
-      {showEnquete && <EnqueteModal dossierId={d.id} onClose={() => setShowEnquete(false)} onSaved={() => { setShowEnquete(false); onReload(); }} showNotif={showNotif} />}
+      {showEnquete && <EnqueteModal dossierId={d.id} enquete={null} onClose={() => setShowEnquete(false)} onSaved={() => { setShowEnquete(false); onReload(); }} showNotif={showNotif} />}
+      {editEnquete && <EnqueteModal dossierId={d.id} enquete={editEnquete} onClose={() => setEditEnquete(null)} onSaved={() => { setEditEnquete(null); onReload(); }} showNotif={showNotif} />}
 
       <button className="back-btn" onClick={onBack}>← Retour au casier</button>
 
@@ -301,6 +323,7 @@ function DossierDetail({ dossier, infs, enqs, onBack, onReload, showNotif }) {
             <div key={enq.id} className="enquete-card">
               <div className="enquete-title">
                 <span>🗂 {enq.titre || 'Enquête sans titre'}</span>
+                <button className="btn-blue" style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => setEditEnquete(enq)}>✏ Modifier</button>
                 <button className="btn-red" onClick={() => deleteEnquete(enq.id)}>🗑 Supprimer</button>
               </div>
               {(enq.date || enq.agent) && (
@@ -318,6 +341,26 @@ function DossierDetail({ dossier, infs, enqs, onBack, onReload, showNotif }) {
                   <div className="record-photos">{enq.photos.map((url, i) => <img key={i} className="record-photo" src={url} alt="" onClick={() => setLightbox(url)} onError={e => e.target.style.display='none'} />)}</div>
                 </div>
               )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Plaintes liées à ce dossier */}
+      {plaintesDossier.length > 0 && (
+        <div className="card" style={{ marginTop: 16, borderLeft: '3px solid #ff9966' }}>
+          <div className="card-title">📝 Plaintes liées ({plaintesDossier.length})</div>
+          {plaintesDossier.map(p => (
+            <div key={p.id} style={{ background: 'rgba(139,80,0,.1)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 3, padding: '12px 16px', marginBottom: 8 }}>
+              <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'rgba(201,168,76,.7)', letterSpacing: 1, marginBottom: 4 }}>
+                📅 {p.date}{p.heure ? ' à ' + p.heure : ''}
+                {p.agent && <span style={{ marginLeft: 10, color: 'rgba(201,168,76,.9)' }}>👮 {p.agent}</span>}
+              </div>
+              <div style={{ fontSize: 14, color: 'var(--paper)', marginBottom: 6 }}>
+                <span style={{ color: '#ff9966' }}>Plaignant(s) :</span> {p.plaintifsStr || '—'}
+              </div>
+              {p.misStr && <div style={{ fontSize: 13, color: 'rgba(244,237,216,.6)', marginBottom: 4 }}>Mis en cause : {p.misStr}</div>}
+              {p.faits && <div style={{ fontSize: 13, color: 'rgba(244,237,216,.7)', fontStyle: 'italic', lineHeight: 1.5 }}>{p.faits.length > 200 ? p.faits.slice(0, 200) + '…' : p.faits}</div>}
             </div>
           ))}
         </div>
