@@ -186,10 +186,13 @@ export default function Citoyens({ showNotif, onGoToCasier }) {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setCitoyens(list);
 
-      // Charger les casiers correspondants (par carteId = idNum dans Firestore)
+      // Charger les casiers et indexer par nomComplet (prénom + nom)
       const casierSnap = await getDocs(collection(db, 'casier'));
       const casierMap = {};
-      casierSnap.forEach(d => { casierMap[d.id] = { id: d.id, ...d.data() }; });
+      casierSnap.forEach(d => {
+        const data = d.data();
+        if (data.nomComplet) casierMap[data.nomComplet.toLowerCase()] = { id: d.id, ...data };
+      });
       setCasiers(casierMap);
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
     setLoading(false);
@@ -221,7 +224,7 @@ export default function Citoyens({ showNotif, onGoToCasier }) {
 
   // ── Vue détail ──
   if (view === 'detail' && selected) {
-    const casier = selected.carteId ? casiers[selected.carteId] : null;
+    const casier = casiers[(selected.nomComplet || '').toLowerCase()] || null;
     return (
       <>
         {modal && (
@@ -238,7 +241,7 @@ export default function Citoyens({ showNotif, onGoToCasier }) {
           onBack={() => { setView('list'); setSelected(null); }}
           onEdit={() => setModal(selected)}
           onDelete={deleteCitoyen}
-          onGoToCasier={() => onGoToCasier(selected.carteId)}
+          onGoToCasier={() => onGoToCasier(casier.id)}
         />
       </>
     );
@@ -282,7 +285,7 @@ export default function Citoyens({ showNotif, onGoToCasier }) {
         {!loading && filtered.length > 0 && (
           <div className="dossier-grid">
             {filtered.map(c => {
-              const casier = c.carteId ? casiers[c.carteId] : null;
+              const casier = casiers[(c.nomComplet || '').toLowerCase()] || null;
               const hasCasier = !!casier;
               return (
                 <div

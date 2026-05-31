@@ -8,14 +8,18 @@ export default function Verbalization({ showNotif }) {
   const nowTime = today.getHours().toString().padStart(2,'0') + ':' + today.getMinutes().toString().padStart(2,'0');
 
   const [agents, setAgents] = useState([]);
+  const [citoyens, setCitoyens] = useState([]);
 
   useEffect(() => {
     getDocs(query(collection(db, 'effectif'), orderBy('nom')))
       .then(snap => setAgents(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
       .catch(() => {});
+    getDocs(query(collection(db, 'citoyens'), orderBy('nomComplet')))
+      .then(snap => setCitoyens(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+      .catch(() => {});
   }, []);
 
-  const [form, setForm] = useState({
+  const emptyForm = {
     date: today.toISOString().split('T')[0],
     heure: nowTime,
     agent: '',
@@ -26,7 +30,10 @@ export default function Verbalization({ showNotif }) {
     age: '',
     note: '',
     desc: '',
-  });
+  };
+
+  const [form, setForm] = useState(emptyForm);
+  const [selectedCitoyen, setSelectedCitoyen] = useState('');
   const [selected, setSelected] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [photoUrl, setPhotoUrl] = useState('');
@@ -34,6 +41,22 @@ export default function Verbalization({ showNotif }) {
 
   const total = selected.reduce((s, x) => s + x.amende, 0);
   const hasSisika = selected.some(x => x.sisika);
+
+  // Quand on sélectionne un citoyen dans le menu, on auto-remplit les champs
+  function handleCitoyenSelect(e) {
+    const val = e.target.value;
+    setSelectedCitoyen(val);
+    if (!val) return;
+    const c = citoyens.find(c => c.id === val);
+    if (!c) return;
+    setForm(f => ({
+      ...f,
+      nom:    c.nom    || '',
+      prenom: c.prenom || '',
+      idNum:  c.carteId || '',
+      age:    c.age ? String(c.age) : '',
+    }));
+  }
 
   function toggleInfraction(art) {
     setSelected(prev => {
@@ -52,10 +75,11 @@ export default function Verbalization({ showNotif }) {
   function resetForm() {
     const now = new Date();
     setForm({
+      ...emptyForm,
       date: now.toISOString().split('T')[0],
       heure: now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0'),
-      agent: '', nom: '', prenom: '', idNum: '', sexe: '', age: '', note: '', desc: '',
     });
+    setSelectedCitoyen('');
     setSelected([]);
     setPhotos([]);
   }
@@ -103,6 +127,26 @@ export default function Verbalization({ showNotif }) {
 
       <div className="card">
         <div className="card-title">📋 Nouvelle Verbalisation</div>
+
+        {/* Présélection citoyen */}
+        {citoyens.length > 0 && (
+          <div style={{ marginBottom: 20, padding: '14px 16px', background: 'rgba(201,168,76,.06)', border: '1px solid rgba(201,168,76,.25)', borderRadius: 3 }}>
+            <label className="field-label" style={{ marginBottom: 8 }}>Citoyen enregistré — Sélection rapide</label>
+            <select className="field-select" value={selectedCitoyen} onChange={handleCitoyenSelect}>
+              <option value="">— Saisir manuellement ou sélectionner un citoyen enregistré —</option>
+              {citoyens.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.prenom} {c.nom}{c.carteId ? ' — ' + c.carteId : ''}{c.metier ? ' (' + c.metier + ')' : ''}
+                </option>
+              ))}
+            </select>
+            {selectedCitoyen && (
+              <div style={{ marginTop: 8, fontSize: 12, color: 'rgba(201,168,76,.7)', fontFamily: "'Special Elite', cursive", letterSpacing: 1 }}>
+                ✓ Champs nom, prénom, carte d'identité et âge auto-remplis — vous pouvez les modifier si nécessaire
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Date / Heure / Agent */}
         <div className="form-grid three" style={{ marginBottom: 16 }}>
