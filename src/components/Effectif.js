@@ -6,21 +6,14 @@ import {
 } from 'firebase/firestore';
 
 // ── Grades disponibles ─────────────────────────────────────────
-// Modifiez cette liste pour ajouter / retirer des grades.
-export const GRADES = [
-  "Adjoint",
-  "Adjoint Senior",
-  "Shérif Adjoint",
-  "Shérif",
-  "Shérif en Chef",
-];
+// Plus utilisé comme liste fixe — la saisie est libre.
 
 // ── Modal ajout / édition ──────────────────────────────────────
 function AgentModal({ agent, onClose, onSaved, showNotif }) {
   const [form, setForm] = useState({
     nom:       agent?.nom       || '',
     prenom:    agent?.prenom    || '',
-    grade:     agent?.grade     || GRADES[0],
+    grade:     agent?.grade     || '',
     telegram:  agent?.telegram  || '',
   });
 
@@ -63,13 +56,11 @@ function AgentModal({ agent, onClose, onSaved, showNotif }) {
         <div className="form-grid" style={{ marginBottom: 16 }}>
           <div>
             <label className="field-label">Grade</label>
-            <select className="field-select" value={form.grade} onChange={e => setForm(f => ({ ...f, grade: e.target.value }))}>
-              {GRADES.map(g => <option key={g}>{g}</option>)}
-            </select>
+            <input type="text" className="field-input" placeholder="Ex: Shérif Adjoint" value={form.grade} onChange={e => setForm(f => ({ ...f, grade: e.target.value }))} />
           </div>
           <div>
             <label className="field-label">N° Télégramme</label>
-            <input type="text" className="field-input" placeholder="Ex: @morgan_sheriff" value={form.telegram} onChange={e => setForm(f => ({ ...f, telegram: e.target.value }))} />
+            <input type="text" className="field-input" placeholder="Ex: ABC-1234" value={form.telegram} onChange={e => setForm(f => ({ ...f, telegram: e.target.value }))} />
           </div>
         </div>
 
