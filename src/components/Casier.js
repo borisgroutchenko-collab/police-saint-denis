@@ -243,11 +243,23 @@ function DossierDetail({ dossier, infs, enqs, plaintesSignalees, onBack, onReloa
   }
   async function deleteInfraction(infId) {
     if (!window.confirm('Supprimer cette verbalisation ?')) return;
+    // Récupérer l'infraction avant suppression pour vérifier si elle est liée à une plainte
+    const infSnap = await getDoc(doc(db, 'casier', d.id, 'infractions', infId));
+    const infData = infSnap.exists() ? infSnap.data() : null;
+
     await deleteDoc(doc(db, 'casier', d.id, 'infractions', infId));
     const remaining = await getDocs(collection(db, 'casier', d.id, 'infractions'));
     let newTotal = 0, newSisika = false;
     remaining.forEach(d2 => { newTotal += d2.data().total || 0; if (d2.data().sisika) newSisika = true; });
     await updateDoc(doc(db, 'casier', d.id), { totalAmende: newTotal, sisika: newSisika, nbInfractions: remaining.size });
+
+    // Si l'infraction était liée à une plainte, supprimer le signalement dans plaintesSignalees
+    if (infData?.plainteId) {
+      try {
+        await deleteDoc(doc(db, 'casier', d.id, 'plaintesSignalees', infData.plainteId));
+      } catch (e) {}
+    }
+
     showNotif('Verbalisation supprimée !');
     onReload();
   }
