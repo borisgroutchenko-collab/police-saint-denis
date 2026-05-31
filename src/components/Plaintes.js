@@ -19,19 +19,19 @@ const STATUTS = [
 async function syncPlainteCasiers(plainteId, misEnCause, plaintifsStr, date, faits, statut, casiersLies) {
   for (const m of misEnCause) {
     if (m.inconnu || !m.nom) continue;
-    const casierKey = m.carteId || ((m.prenom || '') + '_' + m.nom).replace(/ /g, '_');
+    const nomComplet = (m.prenom ? m.prenom + ' ' : '') + m.nom;
+    const casierKey = nomComplet.toLowerCase().replace(/ /g, '_');
     const sigRef = doc(db, 'casier', casierKey, 'plaintesSignalees', plainteId);
     const blanchi = statut === 'classee' && (!casiersLies || !casiersLies.includes(casierKey));
     if (blanchi) {
       try { await deleteDoc(sigRef); } catch (e) {}
     } else {
-      // Crée le casier s'il n'existe pas
       const casRef = doc(db, 'casier', casierKey);
       const casSnap = await getDoc(casRef);
       if (!casSnap.exists()) {
         await setDoc(casRef, {
-          idNum: m.carteId || '', nom: m.nom, prenom: m.prenom || '',
-          nomComplet: (m.prenom ? m.prenom + ' ' : '') + m.nom,
+          idNum: m.carteId || casierKey, nom: m.nom, prenom: m.prenom || '',
+          nomComplet,
           sexe: '', age: 0, createdAt: serverTimestamp(),
           totalAmende: 0, sisika: false, nbInfractions: 0,
         });
@@ -239,32 +239,32 @@ function VerbalisationModal({ plainte, misIndex, agents, onClose, onDone, showNo
 
   async function submit() {
     if (!selected.length) { showNotif('Sélectionnez au moins une infraction', true); return; }
-    const idNum = mis.carteId || ((mis.prenom || '') + '_' + mis.nom).replace(/ /g, '_');
     const nomC = nomCompletMis(mis);
+    const casierKey = nomC.toLowerCase().replace(/ /g, '_');
     const now = new Date();
     const record = {
       date: now.toISOString().split('T')[0],
       heure: now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0'),
       agent: agent || 'Non précisé', nom: mis.nom, prenom: mis.prenom || '',
-      idNum, nomComplet: nomC, sexe: '', age: 0,
+      idNum: mis.carteId || casierKey, nomComplet: nomC, sexe: '', age: 0,
       note, desc: `Plainte déposée par ${plainte.plaintifsStr} — ${plainte.faits || ''}`,
       infractions: selected, total, sisika: hasSisika,
       photos: [], createdAt: serverTimestamp(), plainteId: plainte.id,
     };
     try {
-      const dRef = doc(db, 'casier', idNum);
+      const dRef = doc(db, 'casier', casierKey);
       const dSnap = await getDoc(dRef);
       if (!dSnap.exists()) {
-        await setDoc(dRef, { idNum, nom: mis.nom, prenom: mis.prenom || '', nomComplet: nomC, sexe: '', age: 0, createdAt: serverTimestamp(), totalAmende: 0, sisika: false, nbInfractions: 0 });
+        await setDoc(dRef, { idNum: mis.carteId || casierKey, nom: mis.nom, prenom: mis.prenom || '', nomComplet: nomC, sexe: '', age: 0, createdAt: serverTimestamp(), totalAmende: 0, sisika: false, nbInfractions: 0 });
       }
       await addDoc(collection(dRef, 'infractions'), record);
       await updateDoc(dRef, { totalAmende: increment(total), sisika: hasSisika || (dSnap.exists() && dSnap.data().sisika), nbInfractions: increment(1) });
       // Ajouter ce casier aux casiers liés de la plainte (sans doublon)
       const existingLies = Array.isArray(plainte.casiersLies) ? plainte.casiersLies : [];
-      const newLies = existingLies.includes(idNum) ? existingLies : [...existingLies, idNum];
+      const newLies = existingLies.includes(casierKey) ? existingLies : [...existingLies, casierKey];
       await updateDoc(doc(db, 'plaintes', plainte.id), { statut: 'instruite', casiersLies: newLies });
       // Mettre à jour le signalement dans le casier : passe en "verbalisé"
-      await setDoc(doc(db, 'casier', idNum, 'plaintesSignalees', plainte.id), {
+      await setDoc(doc(db, 'casier', casierKey, 'plaintesSignalees', plainte.id), {
         plainteId: plainte.id, plaintifsStr: plainte.plaintifsStr || '',
         date: plainte.date || '', faits: plainte.faits || '',
         statut: 'verbalise', misNom: mis.nom, misPrenom: mis.prenom || '',

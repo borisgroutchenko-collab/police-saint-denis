@@ -74,23 +74,27 @@ export default function Verbalization({ showNotif }) {
     if (!form.date || !selected.length) {
       showNotif('Date et au moins une infraction obligatoires', true); return;
     }
-    const idNum = citoyenChoisi.carteId || (citoyenChoisi.prenom + '_' + citoyenChoisi.nom).replace(/ /g, '_');
+    const nomComplet = citoyenChoisi.nomComplet || (citoyenChoisi.prenom + ' ' + citoyenChoisi.nom);
+    // Clé stable = nomComplet en minuscules, espaces remplacés par underscores
+    const casierKey = nomComplet.toLowerCase().replace(/ /g, '_');
     const record = {
       date: form.date, heure: form.heure, agent: form.agent,
       note: form.note, desc: form.desc,
       nom: citoyenChoisi.nom, prenom: citoyenChoisi.prenom,
-      idNum, sexe: citoyenChoisi.sexe || '', age: citoyenChoisi.age || 0,
-      nomComplet: citoyenChoisi.nomComplet || (citoyenChoisi.prenom + ' ' + citoyenChoisi.nom),
+      idNum: citoyenChoisi.carteId || casierKey,
+      sexe: citoyenChoisi.sexe || '', age: citoyenChoisi.age || 0,
+      nomComplet,
       infractions: selected, total, sisika: hasSisika,
       photos: [...photos], createdAt: serverTimestamp(),
     };
     try {
-      const dRef = doc(db, 'casier', idNum);
+      const dRef = doc(db, 'casier', casierKey);
       const dSnap = await getDoc(dRef);
       if (!dSnap.exists()) {
         await setDoc(dRef, {
-          idNum, nom: citoyenChoisi.nom, prenom: citoyenChoisi.prenom,
-          nomComplet: record.nomComplet, sexe: citoyenChoisi.sexe || '',
+          idNum: citoyenChoisi.carteId || casierKey,
+          nom: citoyenChoisi.nom, prenom: citoyenChoisi.prenom,
+          nomComplet, sexe: citoyenChoisi.sexe || '',
           age: citoyenChoisi.age || 0, createdAt: serverTimestamp(),
           totalAmende: 0, sisika: false, nbInfractions: 0,
         });
