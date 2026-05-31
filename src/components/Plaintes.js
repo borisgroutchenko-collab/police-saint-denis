@@ -90,8 +90,8 @@ function PlainteModal({ plainte, citoyens, agents, onClose, onSaved, showNotif }
   }
 
   async function save() {
-    if (!plaignants.some(p => p.nom || p.citoyenId)) { showNotif('Indiquez au moins un plaignant', true); return; }
-    const plaintifsStr = plaignants.map(p => (p.prenom ? p.prenom + ' ' : '') + (p.nom || 'Inconnu')).join(', ');
+    if (!plaignants.some(p => p.citoyenId)) { showNotif('Sélectionnez au moins un plaignant dans la liste des citoyens', true); return; }
+    const plaintifsStr = plaignants.filter(p => p.citoyenId).map(p => (p.prenom ? p.prenom + ' ' : '') + (p.nom || '')).join(', ');
     const misStr = misEnCause.map(m => m.inconnu ? 'Inconnu (X)' : nomCompletMis(m) || 'Inconnu').join(', ');
     const data = { ...form, plaignants, misEnCause, plaintifsStr, misStr, updatedAt: serverTimestamp() };
     try {
@@ -149,27 +149,26 @@ function PlainteModal({ plainte, citoyens, agents, onClose, onSaved, showNotif }
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <label className="field-label" style={{ margin: 0 }}>Plaignant(s) *</label>
-            <button className="btn-blue" style={{ fontSize: 10, padding: '4px 10px' }} onClick={addPlaignant}>+ Ajouter</button>
+            <button className="btn-blue" style={{ fontSize: 10, padding: '4px 10px' }} onClick={addPlaignant}>+ Ajouter un plaignant</button>
           </div>
+          {citoyens.length === 0 && (
+            <div style={{ color: '#ff9966', fontFamily: "'Special Elite', cursive", fontSize: 12, padding: '8px 0' }}>⚠ Aucun citoyen enregistré. Ajoutez des citoyens d'abord.</div>
+          )}
           {plaignants.map((p, i) => (
             <div key={i} style={{ background: 'rgba(0,0,0,.2)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 3, padding: 12, marginBottom: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                 <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'rgba(201,168,76,.7)', letterSpacing: 1 }}>Plaignant {i + 1}</span>
                 {plaignants.length > 1 && <button className="btn-red" style={{ fontSize: 10, padding: '2px 8px' }} onClick={() => removePlaignant(i)}>✕ Retirer</button>}
               </div>
-              {citoyens.length > 0 && (
-                <div style={{ marginBottom: 8 }}>
-                  <label className="field-label">Citoyen enregistré</label>
-                  <select className="field-select" value={p.citoyenId || ''} onChange={e => selectCitoyenPlaignant(i, e.target.value)}>
-                    <option value="">— Saisir manuellement —</option>
-                    {citoyens.map(c => <option key={c.id} value={c.id}>{c.prenom} {c.nom}{c.metier ? ' (' + c.metier + ')' : ''}</option>)}
-                  </select>
+              <select className="field-select" value={p.citoyenId || ''} onChange={e => selectCitoyenPlaignant(i, e.target.value)}>
+                <option value="">— Sélectionner un citoyen enregistré —</option>
+                {citoyens.map(c => <option key={c.id} value={c.id}>{c.prenom} {c.nom}{c.metier ? ' (' + c.metier + ')' : ''}</option>)}
+              </select>
+              {p.citoyenId && (
+                <div style={{ marginTop: 6, fontSize: 12, color: 'rgba(201,168,76,.7)', fontFamily: "'Special Elite', cursive" }}>
+                  ✓ {p.prenom} {p.nom}
                 </div>
               )}
-              <div className="form-grid">
-                <div><label className="field-label">Nom</label><input type="text" className="field-input" placeholder="Nom" value={p.nom} onChange={e => updatePlaignant(i, 'nom', e.target.value)} /></div>
-                <div><label className="field-label">Prénom</label><input type="text" className="field-input" placeholder="Prénom" value={p.prenom} onChange={e => updatePlaignant(i, 'prenom', e.target.value)} /></div>
-              </div>
             </div>
           ))}
         </div>
@@ -192,23 +191,15 @@ function PlainteModal({ plainte, citoyens, agents, onClose, onSaved, showNotif }
               </label>
               {!m.inconnu && (
                 <>
-                  {citoyens.length > 0 && (
-                    <div style={{ marginBottom: 8 }}>
-                      <label className="field-label">Citoyen enregistré</label>
-                      <select className="field-select" value={m.citoyenId || ''} onChange={e => selectCitoyenMis(i, e.target.value)}>
-                        <option value="">— Saisir manuellement —</option>
-                        {citoyens.map(c => <option key={c.id} value={c.id}>{c.prenom} {c.nom}{c.metier ? ' (' + c.metier + ')' : ''}</option>)}
-                      </select>
+                  <select className="field-select" value={m.citoyenId || ''} onChange={e => selectCitoyenMis(i, e.target.value)}>
+                    <option value="">— Sélectionner un citoyen enregistré —</option>
+                    {citoyens.map(c => <option key={c.id} value={c.id}>{c.prenom} {c.nom}{c.metier ? ' (' + c.metier + ')' : ''}</option>)}
+                  </select>
+                  {m.citoyenId && (
+                    <div style={{ marginTop: 6, fontSize: 12, color: '#ff9966', fontFamily: "'Special Elite', cursive" }}>
+                      ✓ {m.prenom} {m.nom}{m.carteId ? ' — ' + m.carteId : ''}
                     </div>
                   )}
-                  <div className="form-grid">
-                    <div><label className="field-label">Nom</label><input type="text" className="field-input" placeholder="Nom du mis en cause" value={m.nom} onChange={e => updateMis(i, 'nom', e.target.value)} /></div>
-                    <div><label className="field-label">Prénom</label><input type="text" className="field-input" placeholder="Prénom" value={m.prenom} onChange={e => updateMis(i, 'prenom', e.target.value)} /></div>
-                  </div>
-                  <div style={{ marginTop: 8 }}>
-                    <label className="field-label">N° Carte d'identité (si connu)</label>
-                    <input type="text" className="field-input" placeholder="Ex: 1111" value={m.carteId} onChange={e => updateMis(i, 'carteId', e.target.value)} />
-                  </div>
                 </>
               )}
             </div>

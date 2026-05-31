@@ -9,6 +9,7 @@ export default function Verbalization({ showNotif }) {
 
   const [agents, setAgents] = useState([]);
   const [citoyens, setCitoyens] = useState([]);
+  const [citoyenChoisi, setCitoyenChoisi] = useState(null); // objet citoyen sélectionné
 
   useEffect(() => {
     getDocs(query(collection(db, 'effectif'), orderBy('nom')))
@@ -23,17 +24,11 @@ export default function Verbalization({ showNotif }) {
     date: today.toISOString().split('T')[0],
     heure: nowTime,
     agent: '',
-    nom: '',
-    prenom: '',
-    idNum: '',
-    sexe: '',
-    age: '',
     note: '',
     desc: '',
   };
 
   const [form, setForm] = useState(emptyForm);
-  const [selectedCitoyen, setSelectedCitoyen] = useState('');
   const [selected, setSelected] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [photoUrl, setPhotoUrl] = useState('');
@@ -42,27 +37,15 @@ export default function Verbalization({ showNotif }) {
   const total = selected.reduce((s, x) => s + x.amende, 0);
   const hasSisika = selected.some(x => x.sisika);
 
-  // Quand on sélectionne un citoyen dans le menu, on auto-remplit les champs
   function handleCitoyenSelect(e) {
     const val = e.target.value;
-    setSelectedCitoyen(val);
-    if (!val) return;
+    if (!val) { setCitoyenChoisi(null); return; }
     const c = citoyens.find(c => c.id === val);
-    if (!c) return;
-    setForm(f => ({
-      ...f,
-      nom:    c.nom    || '',
-      prenom: c.prenom || '',
-      idNum:  c.carteId || '',
-      age:    c.age ? String(c.age) : '',
-    }));
+    setCitoyenChoisi(c || null);
   }
 
   function toggleInfraction(art) {
-    setSelected(prev => {
-      const exists = prev.find(x => x.num === art.num);
-      return exists ? prev.filter(x => x.num !== art.num) : [...prev, art];
-    });
+    setSelected(prev => prev.find(x => x.num === art.num) ? prev.filter(x => x.num !== art.num) : [...prev, art]);
   }
 
   function addPhoto() {
@@ -79,31 +62,37 @@ export default function Verbalization({ showNotif }) {
       date: now.toISOString().split('T')[0],
       heure: now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0'),
     });
-    setSelectedCitoyen('');
+    setCitoyenChoisi(null);
     setSelected([]);
     setPhotos([]);
   }
 
   async function submit() {
-    if (!form.date || !form.nom || !form.prenom || !form.idNum || !selected.length) {
-      showNotif('Champs obligatoires manquants ou aucune infraction sélectionnée', true); return;
+    if (!citoyenChoisi) {
+      showNotif('Sélectionnez un citoyen enregistré', true); return;
     }
+    if (!form.date || !selected.length) {
+      showNotif('Date et au moins une infraction obligatoires', true); return;
+    }
+    const idNum = citoyenChoisi.carteId || (citoyenChoisi.prenom + '_' + citoyenChoisi.nom).replace(/ /g, '_');
     const record = {
-      ...form, age: parseInt(form.age) || 0,
+      date: form.date, heure: form.heure, agent: form.agent,
+      note: form.note, desc: form.desc,
+      nom: citoyenChoisi.nom, prenom: citoyenChoisi.prenom,
+      idNum, sexe: citoyenChoisi.sexe || '', age: citoyenChoisi.age || 0,
+      nomComplet: citoyenChoisi.nomComplet || (citoyenChoisi.prenom + ' ' + citoyenChoisi.nom),
       infractions: selected, total, sisika: hasSisika,
-      photos: [...photos],
-      createdAt: serverTimestamp(),
-      nomComplet: form.prenom + ' ' + form.nom,
+      photos: [...photos], createdAt: serverTimestamp(),
     };
     try {
-      const dRef = doc(db, 'casier', form.idNum);
+      const dRef = doc(db, 'casier', idNum);
       const dSnap = await getDoc(dRef);
       if (!dSnap.exists()) {
         await setDoc(dRef, {
-          idNum: form.idNum, nom: form.nom, prenom: form.prenom,
-          nomComplet: form.prenom + ' ' + form.nom,
-          sexe: form.sexe, age: parseInt(form.age) || 0,
-          createdAt: serverTimestamp(), totalAmende: 0, sisika: false, nbInfractions: 0,
+          idNum, nom: citoyenChoisi.nom, prenom: citoyenChoisi.prenom,
+          nomComplet: record.nomComplet, sexe: citoyenChoisi.sexe || '',
+          age: citoyenChoisi.age || 0, createdAt: serverTimestamp(),
+          totalAmende: 0, sisika: false, nbInfractions: 0,
         });
       }
       await addDoc(collection(dRef, 'infractions'), record);
@@ -128,25 +117,42 @@ export default function Verbalization({ showNotif }) {
       <div className="card">
         <div className="card-title">📋 Nouvelle Verbalisation</div>
 
-        {/* Présélection citoyen */}
-        {citoyens.length > 0 && (
-          <div style={{ marginBottom: 20, padding: '14px 16px', background: 'rgba(201,168,76,.06)', border: '1px solid rgba(201,168,76,.25)', borderRadius: 3 }}>
-            <label className="field-label" style={{ marginBottom: 8 }}>Citoyen enregistré — Sélection rapide</label>
-            <select className="field-select" value={selectedCitoyen} onChange={handleCitoyenSelect}>
-              <option value="">— Saisir manuellement ou sélectionner un citoyen enregistré —</option>
+        {/* Sélection citoyen — obligatoire */}
+        <div style={{ marginBottom: 20, padding: '16px', background: 'rgba(201,168,76,.06)', border: '1px solid rgba(201,168,76,.3)', borderRadius: 3 }}>
+          <label className="field-label" style={{ marginBottom: 8 }}>Citoyen verbalisé *</label>
+          {citoyens.length === 0 ? (
+            <div style={{ color: '#ff9966', fontFamily: "'Special Elite', cursive", fontSize: 13, padding: '10px 0' }}>
+              ⚠ Aucun citoyen enregistré. Rendez-vous dans l'onglet Citoyens pour en ajouter.
+            </div>
+          ) : (
+            <select className="field-select" value={citoyenChoisi?.id || ''} onChange={handleCitoyenSelect}>
+              <option value="">— Sélectionner un citoyen enregistré —</option>
               {citoyens.map(c => (
                 <option key={c.id} value={c.id}>
                   {c.prenom} {c.nom}{c.carteId ? ' — ' + c.carteId : ''}{c.metier ? ' (' + c.metier + ')' : ''}
                 </option>
               ))}
             </select>
-            {selectedCitoyen && (
-              <div style={{ marginTop: 8, fontSize: 12, color: 'rgba(201,168,76,.7)', fontFamily: "'Special Elite', cursive", letterSpacing: 1 }}>
-                ✓ Champs nom, prénom, carte d'identité et âge auto-remplis — vous pouvez les modifier si nécessaire
-              </div>
-            )}
-          </div>
-        )}
+          )}
+          {/* Fiche récap du citoyen sélectionné */}
+          {citoyenChoisi && (
+            <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
+              {[
+                ['Nom', citoyenChoisi.nomComplet || citoyenChoisi.prenom + ' ' + citoyenChoisi.nom],
+                ['Carte d\'identité', citoyenChoisi.carteId || '—'],
+                ['Âge', citoyenChoisi.age ? citoyenChoisi.age + ' ans' : '—'],
+                ['Sexe', citoyenChoisi.sexe || '—'],
+                ['Comté', citoyenChoisi.comte || '—'],
+                ['Métier', citoyenChoisi.metier || '—'],
+              ].map(([label, val]) => (
+                <div key={label}>
+                  <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, color: 'rgba(201,168,76,.7)', letterSpacing: 1 }}>{label}</div>
+                  <div style={{ fontSize: 13, color: 'var(--paper)' }}>{val}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Date / Heure / Agent */}
         <div className="form-grid three" style={{ marginBottom: 16 }}>
@@ -168,62 +174,24 @@ export default function Verbalization({ showNotif }) {
                     {a.grade} — {a.prenom} {a.nom}
                   </option>
                 ))}
-                <option value="__autre__">✍ Saisir manuellement...</option>
               </select>
             ) : (
               <input type="text" className="field-input" placeholder="Ex: Shérif Morgan" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />
             )}
-            {form.agent === '__autre__' && (
-              <input type="text" className="field-input" style={{ marginTop: 8 }} placeholder="Nom de l'agent" onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />
-            )}
           </div>
         </div>
 
-        {/* ID / Sexe / Âge */}
-        <div className="form-grid three" style={{ marginBottom: 16 }}>
-          <div>
-            <label className="field-label">N° Pièce d'identité *</label>
-            <input type="text" className="field-input" placeholder="Ex: 1111" value={form.idNum} onChange={e => setForm(f => ({ ...f, idNum: e.target.value }))} />
-          </div>
-          <div>
-            <label className="field-label">Sexe</label>
-            <select className="field-select" value={form.sexe} onChange={e => setForm(f => ({ ...f, sexe: e.target.value }))}>
-              <option value="">— Sélectionner —</option>
-              <option>Masculin</option>
-              <option>Féminin</option>
-            </select>
-          </div>
-          <div>
-            <label className="field-label">Âge</label>
-            <input type="number" className="field-input" placeholder="Ex: 35" min="0" max="120" value={form.age} onChange={e => setForm(f => ({ ...f, age: e.target.value }))} />
-          </div>
-        </div>
-
-        {/* Nom / Prénom */}
-        <div className="form-grid" style={{ marginBottom: 16 }}>
-          <div>
-            <label className="field-label">Nom *</label>
-            <input type="text" className="field-input" placeholder="Nom de famille" value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))} />
-          </div>
-          <div>
-            <label className="field-label">Prénom *</label>
-            <input type="text" className="field-input" placeholder="Prénom" value={form.prenom} onChange={e => setForm(f => ({ ...f, prenom: e.target.value }))} />
-          </div>
-        </div>
-
-        {/* Note */}
+        {/* Note / Description */}
         <div style={{ marginBottom: 16 }}>
           <label className="field-label">Note / Appréciation</label>
           <input type="text" className="field-input" placeholder="Note de l'officier verbalisateur" value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} />
         </div>
-
-        {/* Description */}
         <div style={{ marginBottom: 16 }}>
           <label className="field-label">Description complémentaire</label>
           <textarea className="field-textarea" placeholder="Circonstances, lieu, description des faits..." value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))} />
         </div>
 
-        {/* Infractions grid */}
+        {/* Infractions */}
         <div style={{ marginBottom: 20 }}>
           <label className="field-label" style={{ marginBottom: 12 }}>Nature(s) des infraction(s) *</label>
           <div className="infractions-grid">
@@ -235,9 +203,7 @@ export default function Verbalization({ showNotif }) {
                   <div>
                     <div className="infraction-art">{art.num}</div>
                     <div className="infraction-name">{art.nom}</div>
-                    <div className="infraction-amount">
-                      {art.sisika ? '🔒 Sisika ' : ''}{art.amende > 0 ? art.amende + ' $' : ''}
-                    </div>
+                    <div className="infraction-amount">{art.sisika ? '🔒 Sisika ' : ''}{art.amende > 0 ? art.amende + ' $' : ''}</div>
                   </div>
                 </div>
               );
@@ -258,7 +224,7 @@ export default function Verbalization({ showNotif }) {
         <div style={{ marginTop: 20 }}>
           <label className="field-label">Photos de preuves (liens URL)</label>
           <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-            <input type="url" className="field-input" style={{ flex: 1 }} placeholder="https://upload.fixitfy.com.tr/..." value={photoUrl} onChange={e => setPhotoUrl(e.target.value)} />
+            <input type="url" className="field-input" style={{ flex: 1 }} placeholder="https://..." value={photoUrl} onChange={e => setPhotoUrl(e.target.value)} />
             <button className="btn-blue" onClick={addPhoto} style={{ whiteSpace: 'nowrap' }}>+ Ajouter</button>
           </div>
           <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, color: 'rgba(244,237,216,.3)', letterSpacing: 1, marginBottom: 10 }}>
@@ -274,7 +240,6 @@ export default function Verbalization({ showNotif }) {
           </div>
         </div>
 
-        {/* Actions */}
         <div className="actions-row" style={{ marginTop: 24 }}>
           <button className="btn-submit" onClick={submit}>⚖ Enregistrer la Verbalisation</button>
           <button className="btn-red" onClick={resetForm}>✕ Réinitialiser</button>
