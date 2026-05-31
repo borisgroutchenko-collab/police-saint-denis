@@ -477,10 +477,37 @@ export default function Casier({ showNotif, initialDossierId, onDossierOpened })
       const infSnap = await getDocs(query(collection(db, 'casier', id, 'infractions'), orderBy('createdAt', 'desc')));
       const enqSnap = await getDocs(query(collection(db, 'casier', id, 'enquetes'), orderBy('createdAt', 'desc')));
       const plSnap  = await getDocs(collection(db, 'casier', id, 'plaintesSignalees'));
+
+      // Pour chaque signalement, vérifier le statut ACTUEL de la plainte dans Firestore
+      // et nettoyer automatiquement les signalements périmés (plainte classée ou inexistante)
+      const plaintesReelles = [];
+      for (const sigDoc of plSnap.docs) {
+        const sig = { id: sigDoc.id, ...sigDoc.data() };
+        try {
+          const plainteSnap = await getDoc(doc(db, 'plaintes', sig.plainteId));
+          if (!plainteSnap.exists()) {
+            // Plainte supprimée → nettoyer le signalement
+            await deleteDoc(sigDoc.ref);
+          } else {
+            const statutActuel = plainteSnap.data().statut;
+            if (statutActuel === 'classee') {
+              // Plainte classée → nettoyer le signalement
+              await deleteDoc(sigDoc.ref);
+            } else {
+              // Mettre à jour le statut si besoin
+              plaintesReelles.push({ ...sig, statut: statutActuel, plaintifsStr: plainteSnap.data().plaintifsStr || sig.plaintifsStr, faits: plainteSnap.data().faits || sig.faits });
+            }
+          }
+        } catch (e) {
+          // En cas d'erreur, on garde le signalement tel quel
+          plaintesReelles.push(sig);
+        }
+      }
+
       setCurrentDossier(dData);
       setCurrentInfs(infSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setCurrentEnqs(enqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setCurrentPlaintes(plSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setCurrentPlaintes(plaintesReelles);
       setView('detail');
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
   }
