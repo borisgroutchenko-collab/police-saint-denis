@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, doc, getDoc, setDoc, addDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, addDoc, updateDoc, increment, serverTimestamp, getDocs, orderBy, query } from 'firebase/firestore';
 import { ALL_INFRACTIONS } from '../data/penalCode';
 
 export default function Verbalization({ showNotif }) {
   const today = new Date();
   const nowTime = today.getHours().toString().padStart(2,'0') + ':' + today.getMinutes().toString().padStart(2,'0');
+
+  const [agents, setAgents] = useState([]);
+
+  useEffect(() => {
+    getDocs(query(collection(db, 'effectif'), orderBy('nom')))
+      .then(snap => setAgents(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+      .catch(() => {});
+  }, []);
 
   const [form, setForm] = useState({
     date: today.toISOString().split('T')[0],
@@ -108,7 +116,22 @@ export default function Verbalization({ showNotif }) {
           </div>
           <div>
             <label className="field-label">Agent verbalisateur *</label>
-            <input type="text" className="field-input" placeholder="Ex: Shérif Morgan" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />
+            {agents.length > 0 ? (
+              <select className="field-select" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))}>
+                <option value="">— Sélectionner un agent —</option>
+                {agents.map(a => (
+                  <option key={a.id} value={`${a.grade} ${a.prenom} ${a.nom}`}>
+                    {a.grade} — {a.prenom} {a.nom}
+                  </option>
+                ))}
+                <option value="__autre__">✍ Saisir manuellement...</option>
+              </select>
+            ) : (
+              <input type="text" className="field-input" placeholder="Ex: Shérif Morgan" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />
+            )}
+            {form.agent === '__autre__' && (
+              <input type="text" className="field-input" style={{ marginTop: 8 }} placeholder="Nom de l'agent" onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />
+            )}
           </div>
         </div>
 
