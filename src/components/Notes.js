@@ -49,6 +49,7 @@ function NoteModal({ note, onClose, onSaved, showNotif }) {
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
   }
 
+  return (
     <div className="modal-overlay open">
       <div className="modal" style={{ maxWidth: 640 }}>
         {lightbox && (
