@@ -11,6 +11,8 @@ function CitoyenModal({ citoyen, onClose, onSaved, showNotif }) {
     nom:      citoyen?.nom      || '',
     prenom:   citoyen?.prenom   || '',
     age:      citoyen?.age      || '',
+    sexe:     citoyen?.sexe     || '',
+    comte:    citoyen?.comte    || '',
     metier:   citoyen?.metier   || '',
     carteId:  citoyen?.carteId  || '',
     telegram: citoyen?.telegram || '',
@@ -55,6 +57,21 @@ function CitoyenModal({ citoyen, onClose, onSaved, showNotif }) {
             <label className="field-label">Âge</label>
             <input type="number" className="field-input" placeholder="Ex: 34" min="0" max="120" value={form.age} onChange={e => setForm(f => ({ ...f, age: e.target.value }))} />
           </div>
+          <div>
+            <label className="field-label">Sexe</label>
+            <select className="field-select" value={form.sexe} onChange={e => setForm(f => ({ ...f, sexe: e.target.value }))}>
+              <option value="">— Sélectionner —</option>
+              <option>Masculin</option>
+              <option>Féminin</option>
+            </select>
+          </div>
+          <div>
+            <label className="field-label">Comté d'origine</label>
+            <input type="text" className="field-input" placeholder="Ex: Lemoyne, New Hanover..." value={form.comte} onChange={e => setForm(f => ({ ...f, comte: e.target.value }))} />
+          </div>
+        </div>
+
+        <div className="form-grid" style={{ marginBottom: 16 }}>
           <div>
             <label className="field-label">N° Carte d'identité</label>
             <input type="text" className="field-input" placeholder="Ex: SD-1905-001" value={form.carteId} onChange={e => setForm(f => ({ ...f, carteId: e.target.value }))} />
@@ -110,6 +127,16 @@ function CitoyenDetail({ citoyen, casier, onBack, onEdit, onDelete, onGoToCasier
             <div style={{ fontSize: 15, color: 'var(--paper)' }}>{citoyen.age ? citoyen.age + ' ans' : '—'}</div>
           </div>
           <div>
+            <span className="field-label">Sexe</span>
+            <div style={{ fontSize: 15, color: 'var(--paper)' }}>{citoyen.sexe || '—'}</div>
+          </div>
+          <div>
+            <span className="field-label">Comté d'origine</span>
+            <div style={{ fontSize: 15, color: 'var(--paper)' }}>{citoyen.comte || '—'}</div>
+          </div>
+        </div>
+        <div className="form-grid three" style={{ marginBottom: 16 }}>
+          <div>
             <span className="field-label">N° Carte d'identité</span>
             <div style={{ fontFamily: "'Special Elite', cursive", color: 'var(--gold)', fontSize: 15, letterSpacing: 1 }}>{citoyen.carteId || '—'}</div>
           </div>
@@ -117,10 +144,10 @@ function CitoyenDetail({ citoyen, casier, onBack, onEdit, onDelete, onGoToCasier
             <span className="field-label">N° Télégramme</span>
             <div style={{ fontFamily: "'Special Elite', cursive", color: 'rgba(244,237,216,.6)', fontSize: 14 }}>{citoyen.telegram || '—'}</div>
           </div>
-        </div>
-        <div style={{ marginBottom: 20 }}>
-          <span className="field-label">Métier</span>
-          <div style={{ fontSize: 15, color: 'var(--paper)' }}>{citoyen.metier || '—'}</div>
+          <div>
+            <span className="field-label">Métier</span>
+            <div style={{ fontSize: 15, color: 'var(--paper)' }}>{citoyen.metier || '—'}</div>
+          </div>
         </div>
 
         {/* Casier résumé */}

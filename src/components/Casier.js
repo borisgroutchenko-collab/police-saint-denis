@@ -8,7 +8,7 @@ import { ALL_INFRACTIONS } from '../data/penalCode';
 import { exportPDF } from '../utils/exportPDF';
 
 // ── Edit modal ────────────────────────────────────────────────
-function EditModal({ dossierId, infraction, onClose, onSaved, showNotif }) {
+function EditModal({ dossierId, infraction, agents, onClose, onSaved, showNotif }) {
   const [form, setForm] = useState({
     date: infraction.date || '',
     heure: infraction.heure || '',
@@ -50,7 +50,19 @@ function EditModal({ dossierId, infraction, onClose, onSaved, showNotif }) {
         <div className="form-grid three" style={{ marginBottom: 16 }}>
           <div><label className="field-label">Date</label><input type="date" className="field-input" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></div>
           <div><label className="field-label">Heure</label><input type="time" className="field-input" value={form.heure} onChange={e => setForm(f => ({ ...f, heure: e.target.value }))} /></div>
-          <div><label className="field-label">Agent verbalisateur</label><input type="text" className="field-input" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} /></div>
+          <div>
+            <label className="field-label">Agent verbalisateur</label>
+            {agents?.length > 0 ? (
+              <select className="field-select" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))}>
+                <option value="">— Sélectionner —</option>
+                {agents.map(a => <option key={a.id} value={`${a.grade} ${a.prenom} ${a.nom}`}>{a.grade} — {a.prenom} {a.nom}</option>)}
+                <option value="__autre__">✍ Saisir manuellement...</option>
+              </select>
+            ) : (
+              <input type="text" className="field-input" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />
+            )}
+            {form.agent === '__autre__' && <input type="text" className="field-input" style={{ marginTop: 8 }} placeholder="Nom de l'agent" onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />}
+          </div>
         </div>
         <div className="form-grid" style={{ marginBottom: 16 }}>
           <div><label className="field-label">Note / Appréciation</label><input type="text" className="field-input" value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></div>
@@ -101,16 +113,17 @@ function EditModal({ dossierId, infraction, onClose, onSaved, showNotif }) {
 }
 
 // ── Enquête modal (création ET modification) ───────────────────
-function EnqueteModal({ dossierId, enquete, onClose, onSaved, showNotif }) {
+function EnqueteModal({ dossierId, enquete, agents, onClose, onSaved, showNotif }) {
   const now = new Date();
   const [form, setForm] = useState({
-    titre:        enquete?.titre        || '',
-    localisation: enquete?.localisation || '',
-    contact:      enquete?.contact      || '',
-    membres:      enquete?.membres      || '',
-    date:         enquete?.date         || now.toISOString().split('T')[0],
-    heure:        enquete?.heure        || now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0'),
-    agent:        enquete?.agent        || '',
+    titre:           enquete?.titre           || '',
+    localisation:    enquete?.localisation    || '',
+    contact:         enquete?.contact         || '',
+    membres:         enquete?.membres         || '',
+    elementsEnquete: enquete?.elementsEnquete || '',
+    date:            enquete?.date            || now.toISOString().split('T')[0],
+    heure:           enquete?.heure           || now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0'),
+    agent:           enquete?.agent           || '',
   });
   const [photos, setPhotos] = useState(enquete?.photos || []);
   const [photoUrl, setPhotoUrl] = useState('');
@@ -137,7 +150,19 @@ function EnqueteModal({ dossierId, enquete, onClose, onSaved, showNotif }) {
         <div className="form-grid three" style={{ marginBottom: 16 }}>
           <div><label className="field-label">Date *</label><input type="date" className="field-input" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></div>
           <div><label className="field-label">Heure</label><input type="time" className="field-input" value={form.heure} onChange={e => setForm(f => ({ ...f, heure: e.target.value }))} /></div>
-          <div><label className="field-label">Agent enquêteur</label><input type="text" className="field-input" placeholder="Ex: Inspecteur Morgan" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} /></div>
+          <div>
+            <label className="field-label">Agent enquêteur</label>
+            {agents?.length > 0 ? (
+              <select className="field-select" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))}>
+                <option value="">— Sélectionner —</option>
+                {agents.map(a => <option key={a.id} value={`${a.grade} ${a.prenom} ${a.nom}`}>{a.grade} — {a.prenom} {a.nom}</option>)}
+                <option value="__autre__">✍ Saisir manuellement...</option>
+              </select>
+            ) : (
+              <input type="text" className="field-input" placeholder="Ex: Inspecteur Morgan" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />
+            )}
+            {form.agent === '__autre__' && <input type="text" className="field-input" style={{ marginTop: 8 }} placeholder="Nom de l'agent" onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />}
+          </div>
         </div>
         <div className="form-grid" style={{ marginBottom: 16 }}>
           <div><label className="field-label">Titre de l'enquête</label><input type="text" className="field-input" value={form.titre} onChange={e => setForm(f => ({ ...f, titre: e.target.value }))} /></div>
@@ -150,6 +175,10 @@ function EnqueteModal({ dossierId, enquete, onClose, onSaved, showNotif }) {
         <div style={{ marginBottom: 16 }}>
           <label className="field-label">Membres / Suspects</label>
           <textarea className="field-textarea" value={form.membres} onChange={e => setForm(f => ({ ...f, membres: e.target.value }))} />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label className="field-label">🔍 Éléments d'enquête en cours</label>
+          <textarea className="field-textarea" style={{ minHeight: 100 }} placeholder="Témoignages recueillis, indices, pistes, suspects identifiés, actions en cours..." value={form.elementsEnquete} onChange={e => setForm(f => ({ ...f, elementsEnquete: e.target.value }))} />
         </div>
         <div style={{ marginBottom: 16 }}>
           <label className="field-label">Photos d'enquête</label>
@@ -181,9 +210,16 @@ function DossierDetail({ dossier, infs, enqs, onBack, onReload, showNotif }) {
   const [editInf, setEditInf] = useState(null);
   const [showEnquete, setShowEnquete] = useState(false);
   const [lightbox, setLightbox] = useState(null);
-  const [editEnquete, setEditEnquete] = useState(null); // null | enquete object
+  const [editEnquete, setEditEnquete] = useState(null);
   const [plaintesDossier, setPlaintesDossier] = useState([]);
+  const [agents, setAgents] = useState([]);
   const d = dossier;
+
+  React.useEffect(() => {
+    getDocs(query(collection(db, 'effectif'), orderBy('nom')))
+      .then(snap => setAgents(snap.docs.map(x => ({ id: x.id, ...x.data() }))))
+      .catch(() => {});
+  }, []);
 
   // Charger les plaintes liées à ce dossier
   React.useEffect(() => {
@@ -251,9 +287,9 @@ function DossierDetail({ dossier, infs, enqs, onBack, onReload, showNotif }) {
   return (
     <div>
       {lightbox && <div className="modal-overlay open" onClick={() => setLightbox(null)}><img src={lightbox} alt="" style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 3, border: '2px solid var(--gold)' }} /></div>}
-      {editInf && <EditModal dossierId={d.id} infraction={editInf} onClose={() => setEditInf(null)} onSaved={() => { setEditInf(null); onReload(); }} showNotif={showNotif} />}
-      {showEnquete && <EnqueteModal dossierId={d.id} enquete={null} onClose={() => setShowEnquete(false)} onSaved={() => { setShowEnquete(false); onReload(); }} showNotif={showNotif} />}
-      {editEnquete && <EnqueteModal dossierId={d.id} enquete={editEnquete} onClose={() => setEditEnquete(null)} onSaved={() => { setEditEnquete(null); onReload(); }} showNotif={showNotif} />}
+      {editInf && <EditModal dossierId={d.id} infraction={editInf} agents={agents} onClose={() => setEditInf(null)} onSaved={() => { setEditInf(null); onReload(); }} showNotif={showNotif} />}
+      {showEnquete && <EnqueteModal dossierId={d.id} enquete={null} agents={agents} onClose={() => setShowEnquete(false)} onSaved={() => { setShowEnquete(false); onReload(); }} showNotif={showNotif} />}
+      {editEnquete && <EnqueteModal dossierId={d.id} enquete={editEnquete} agents={agents} onClose={() => setEditEnquete(null)} onSaved={() => { setEditEnquete(null); onReload(); }} showNotif={showNotif} />}
 
       <button className="back-btn" onClick={onBack}>← Retour au casier</button>
 
@@ -270,7 +306,6 @@ function DossierDetail({ dossier, infs, enqs, onBack, onReload, showNotif }) {
         <div className="form-grid" style={{ marginTop: 12 }}>
           <div><span className="field-label">Total amendes</span><div style={{ fontFamily: 'Playfair Display, serif', fontSize: 22, color: '#ff9966' }}>{d.totalAmende || 0} $</div></div>
           <div><span className="field-label">Statut Sisika</span><div>{d.sisika ? <span className="tag-sisika">🔒 Condamnable à Sisika</span> : <span style={{ color: '#90ee90', fontFamily: 'Special Elite, cursive', fontSize: 12 }}>✓ Pas de peine Sisika</span>}</div></div>
-          <div><span className="field-label">Statut Amende</span><div>{d.amendePaid ? <span className="badge-paid">✅ AMENDE PAYÉE</span> : <span className="badge-unpaid">❌ AMENDE NON PAYÉE</span>}</div></div>
         </div>
 
         <div className="actions-row">
@@ -280,7 +315,6 @@ function DossierDetail({ dossier, infs, enqs, onBack, onReload, showNotif }) {
         </div>
         <div className="actions-row" style={{ marginTop: 12 }}>
           <ToggleRow label="🎯 MOST WANTED" subtitle="Signaler comme recherché activement" on={!!d.mostWanted} colorOn="rgba(139,26,26,0.6)" onClick={toggleMostWanted} />
-          <ToggleRow label={`💰 AMENDE ${d.amendePaid ? 'PAYÉE' : 'NON PAYÉE'}`} subtitle="Statut du règlement des amendes" on={!!d.amendePaid} colorOn="rgba(20,80,20,0.6)" onClick={toggleAmendePaid} />
         </div>
       </div>
 
@@ -335,6 +369,7 @@ function DossierDetail({ dossier, infs, enqs, onBack, onReload, showNotif }) {
               {enq.localisation && <div className="enquete-field"><div className="enquete-field-label">📍 Localisation</div><div className="enquete-field-value">{enq.localisation}</div></div>}
               {enq.contact && <div className="enquete-field"><div className="enquete-field-label">📞 Contact(s)</div><div className="enquete-field-value">{enq.contact}</div></div>}
               {enq.membres && <div className="enquete-field"><div className="enquete-field-label">👥 Membres / Suspects</div><div className="enquete-field-value">{enq.membres}</div></div>}
+              {enq.elementsEnquete && <div className="enquete-field"><div className="enquete-field-label" style={{ color: '#9ec4ff' }}>🔍 Éléments d'enquête en cours</div><div className="enquete-field-value" style={{ background: 'rgba(26,58,110,.15)', border: '1px solid rgba(26,58,110,.3)', borderRadius: 3, padding: '8px 12px', marginTop: 4 }}>{enq.elementsEnquete}</div></div>}
               {enq.photos && enq.photos.length > 0 && (
                 <div className="enquete-field">
                   <div className="enquete-field-label">📷 Photos</div>

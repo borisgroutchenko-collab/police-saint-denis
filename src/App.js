@@ -72,9 +72,9 @@ function Login({ onLogin }) {
 
 // ── Navigation tabs ──────────────────────────────────────────
 const SECTIONS = [
+  { key: 'citoyens',      label: '👥 Citoyens' },
   { key: 'verbalization', label: '📋 Verbalisation' },
   { key: 'casier',        label: '🗄 Casier Judiciaire' },
-  { key: 'citoyens',      label: '👥 Citoyens' },
   { key: 'plaintes',      label: '📝 Dépôts de Plainte' },
   { key: 'notes',         label: '📌 Notes' },
   { key: 'penal',         label: '📖 Code Pénal' },
@@ -83,7 +83,7 @@ const SECTIONS = [
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
-  const [section, setSection] = useState('verbalization');
+  const [section, setSection] = useState('citoyens');
   const [casierTarget, setCasierTarget] = useState(null); // idNum à ouvrir dans Casier
   const { notif, showNotif } = useNotif();
 
