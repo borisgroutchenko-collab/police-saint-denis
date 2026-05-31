@@ -6,6 +6,8 @@ import {
 } from 'firebase/firestore';
 
 // ── Modal ajout / édition ──────────────────────────────────────
+const SERIAL_REGEX = /^\d{10}-\d{4}$/;
+
 function CitoyenModal({ citoyen, onClose, onSaved, showNotif }) {
   const [form, setForm] = useState({
     nom:      citoyen?.nom      || '',
@@ -17,12 +19,33 @@ function CitoyenModal({ citoyen, onClose, onSaved, showNotif }) {
     carteId:  citoyen?.carteId  || '',
     telegram: citoyen?.telegram || '',
   });
+  const [armes, setArmes] = useState(citoyen?.armes ? [...citoyen.armes] : []);
+
+  function addArme() {
+    setArmes(a => [...a, { nom: '', serie: '' }]);
+  }
+
+  function removeArme(i) {
+    setArmes(a => a.filter((_, j) => j !== i));
+  }
+
+  function updateArme(i, field, val) {
+    setArmes(a => a.map((x, j) => j === i ? { ...x, [field]: val } : x));
+  }
 
   async function save() {
     if (!form.nom || !form.prenom) {
       showNotif('Nom et prénom obligatoires', true); return;
     }
-    const data = { ...form, age: parseInt(form.age) || 0, nomComplet: form.prenom + ' ' + form.nom };
+    // Valider les numéros de série
+    for (const arme of armes) {
+      if (arme.serie && !SERIAL_REGEX.test(arme.serie)) {
+        showNotif(`Numéro de série invalide : "${arme.serie}" — format attendu : XXXXXXXXXX-XXXX`, true);
+        return;
+      }
+    }
+    const armesFiltered = armes.filter(a => a.nom || a.serie);
+    const data = { ...form, age: parseInt(form.age) || 0, nomComplet: form.prenom + ' ' + form.nom, armes: armesFiltered };
     try {
       if (citoyen?.id) {
         await updateDoc(doc(db, 'citoyens', citoyen.id), data);
@@ -85,6 +108,41 @@ function CitoyenModal({ citoyen, onClose, onSaved, showNotif }) {
         <div style={{ marginBottom: 16 }}>
           <label className="field-label">Métier</label>
           <input type="text" className="field-input" placeholder="Ex: Fermier, Marchand, Médecin..." value={form.metier} onChange={e => setForm(f => ({ ...f, metier: e.target.value }))} />
+        </div>
+
+        {/* Armes */}
+        <div style={{ marginBottom: 16 }}>
+          <label className="field-label" style={{ marginBottom: 8, display: 'block' }}>🔫 Armes enregistrées</label>
+          {armes.map((arme, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+              <input
+                type="text"
+                className="field-input"
+                placeholder="Nom de l'arme"
+                value={arme.nom}
+                onChange={e => updateArme(i, 'nom', e.target.value)}
+                style={{ flex: 2 }}
+              />
+              <input
+                type="text"
+                className="field-input"
+                placeholder="N° série : 0000000000-0000"
+                value={arme.serie}
+                onChange={e => updateArme(i, 'serie', e.target.value)}
+                style={{ flex: 2, fontFamily: "'Special Elite', cursive", letterSpacing: 1 }}
+              />
+              <button
+                className="btn-red"
+                onClick={() => removeArme(i)}
+                style={{ padding: '6px 10px', fontSize: 12, whiteSpace: 'nowrap' }}
+              >✕</button>
+            </div>
+          ))}
+          <button
+            className="btn-gold"
+            onClick={addArme}
+            style={{ fontSize: 12, padding: '6px 14px', marginTop: 4 }}
+          >+ Ajouter une arme</button>
         </div>
 
         <div className="actions-row">
@@ -182,6 +240,23 @@ function CitoyenDetail({ citoyen, casier, groupes, onBack, onEdit, onDelete, onG
           </div>
         )}
 
+        {/* Armes */}
+        {citoyen.armes && citoyen.armes.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <span className="field-label" style={{ display: 'block', marginBottom: 8 }}>🔫 Armes enregistrées</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {citoyen.armes.map((arme, i) => (
+                <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center', background: 'rgba(201,168,76,.07)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 3, padding: '7px 12px' }}>
+                  <span style={{ color: 'var(--paper)', fontSize: 14, flex: 1 }}>{arme.nom || '—'}</span>
+                  {arme.serie && (
+                    <span style={{ fontFamily: "'Special Elite', cursive", color: 'var(--gold)', fontSize: 13, letterSpacing: 1 }}>#{arme.serie}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Groupes d'appartenance */}
         {groupes && groupes.length > 0 && (
           <div style={{ marginBottom: 16, background: 'rgba(139,26,26,.1)', border: '1px solid rgba(139,26,26,.35)', borderRadius: 3, padding: '14px 16px' }}>
@@ -271,11 +346,17 @@ export default function Citoyens({ showNotif, onGoToCasier }) {
     setView('detail');
   }
 
-  const filtered = citoyens.filter(c =>
-    (c.nomComplet || '').toLowerCase().includes(search.toLowerCase()) ||
-    (c.carteId || '').toLowerCase().includes(search.toLowerCase()) ||
-    (c.metier || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = citoyens.filter(c => {
+    const q = search.toLowerCase();
+    if ((c.nomComplet || '').toLowerCase().includes(q)) return true;
+    if ((c.carteId || '').toLowerCase().includes(q)) return true;
+    if ((c.metier || '').toLowerCase().includes(q)) return true;
+    if ((c.armes || []).some(a =>
+      (a.serie || '').toLowerCase().includes(q) ||
+      (a.nom || '').toLowerCase().includes(q)
+    )) return true;
+    return false;
+  });
 
   // ── Vue détail ──
   if (view === 'detail' && selected) {
@@ -327,7 +408,7 @@ export default function Citoyens({ showNotif, onGoToCasier }) {
         <div className="search-bar">
           <input
             type="text" className="field-input" style={{ flex: 1 }}
-            placeholder="Rechercher par nom, carte d'identité ou métier..."
+            placeholder="Rechercher par nom, carte d'identité, métier ou n° d'arme..."
             value={search} onChange={e => setSearch(e.target.value)}
           />
           <button className="btn-gold" onClick={load}>🔄 Actualiser</button>
