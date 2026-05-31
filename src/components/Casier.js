@@ -327,7 +327,7 @@ function DossierDetail({ dossier, infs, enqs, onBack, onReload, showNotif }) {
 }
 
 // ── Main Casier component ──────────────────────────────────────
-export default function Casier({ showNotif }) {
+export default function Casier({ showNotif, initialDossierId, onDossierOpened }) {
   const [dossiers, setDossiers] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -349,6 +349,14 @@ export default function Casier({ showNotif }) {
 
   // Load on mount
   React.useEffect(() => { loadCasier(); }, [loadCasier]);
+
+  // Ouvrir directement un dossier si demandé depuis l'onglet Citoyens
+  React.useEffect(() => {
+    if (initialDossierId) {
+      openDossier(initialDossierId);
+      if (onDossierOpened) onDossierOpened();
+    }
+  }, [initialDossierId]); // eslint-disable-line
 
   async function openDossier(id) {
     try {

@@ -6,6 +6,7 @@ import Verbalization from './components/Verbalization';
 import Casier from './components/Casier';
 import CodePenal from './components/CodePenal';
 import Effectif from './components/Effectif';
+import Citoyens from './components/Citoyens';
 
 // ── Logo (même image base64 que le fichier original) ──────────
 // Remplacez cette URL par un lien vers votre logo si vous le souhaitez.
@@ -71,6 +72,7 @@ function Login({ onLogin }) {
 const SECTIONS = [
   { key: 'verbalization', label: '📋 Verbalisation' },
   { key: 'casier',        label: '🗄 Casier Judiciaire' },
+  { key: 'citoyens',      label: '👥 Citoyens' },
   { key: 'penal',         label: '📖 Code Pénal' },
   { key: 'effectif',      label: '👮 Effectif' },
 ];
@@ -78,7 +80,13 @@ const SECTIONS = [
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [section, setSection] = useState('verbalization');
+  const [casierTarget, setCasierTarget] = useState(null); // idNum à ouvrir dans Casier
   const { notif, showNotif } = useNotif();
+
+  function goToCasier(idNum) {
+    setCasierTarget(idNum);
+    setSection('casier');
+  }
 
   if (!loggedIn) return <Login onLogin={() => setLoggedIn(true)} />;
 
@@ -111,7 +119,8 @@ export default function App() {
       {/* Content */}
       <div className="main-content">
         {section === 'verbalization' && <Verbalization showNotif={showNotif} />}
-        {section === 'casier'        && <Casier        showNotif={showNotif} />}
+        {section === 'casier'        && <Casier        showNotif={showNotif} initialDossierId={casierTarget} onDossierOpened={() => setCasierTarget(null)} />}
+        {section === 'citoyens'      && <Citoyens      showNotif={showNotif} onGoToCasier={goToCasier} />}
         {section === 'penal'         && <CodePenal />}
         {section === 'effectif'      && <Effectif      showNotif={showNotif} />}
       </div>
