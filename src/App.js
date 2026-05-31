@@ -9,6 +9,7 @@ import Effectif from './components/Effectif';
 import Citoyens from './components/Citoyens';
 import Plaintes from './components/Plaintes';
 import Notes from './components/Notes';
+import Groupes from './components/Groupes';
 
 // ── Logo (même image base64 que le fichier original) ──────────
 // Remplacez cette URL par un lien vers votre logo si vous le souhaitez.
@@ -73,6 +74,7 @@ function Login({ onLogin }) {
 // ── Navigation tabs ──────────────────────────────────────────
 const SECTIONS = [
   { key: 'citoyens',      label: '👥 Citoyens' },
+  { key: 'groupes',       label: '⚔ Groupes' },
   { key: 'plaintes',      label: '📝 Dépôts de Plainte' },
   { key: 'verbalization', label: '📋 Verbalisation' },
   { key: 'casier',        label: '🗄 Casier Judiciaire' },
@@ -125,7 +127,9 @@ export default function App() {
         {section === 'verbalization' && <Verbalization showNotif={showNotif} />}
         {section === 'casier'        && <Casier        showNotif={showNotif} initialDossierId={casierTarget} onDossierOpened={() => setCasierTarget(null)} />}
         {section === 'citoyens'      && <Citoyens      showNotif={showNotif} onGoToCasier={goToCasier} />}
+        {section === 'groupes'       && <Groupes       showNotif={showNotif} />}
         {section === 'plaintes'      && <Plaintes      showNotif={showNotif} />}
+        {section === 'verbalization' && <Verbalization showNotif={showNotif} />}
         {section === 'notes'         && <Notes         showNotif={showNotif} />}
         {section === 'penal'         && <CodePenal />}
         {section === 'effectif'      && <Effectif      showNotif={showNotif} />}

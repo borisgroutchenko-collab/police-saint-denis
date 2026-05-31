@@ -320,6 +320,21 @@ function DossierDetail({ dossier, infs, enqs, plaintesSignalees, onBack, onReloa
           <div><span className="field-label">Statut Sisika</span><div>{d.sisika ? <span className="tag-sisika">🔒 Condamnable à Sisika</span> : <span style={{ color: '#90ee90', fontFamily: 'Special Elite, cursive', fontSize: 12 }}>✓ Pas de peine Sisika</span>}</div></div>
         </div>
 
+        {/* Groupes auxquels appartient l'individu */}
+        {d.groupes && d.groupes.length > 0 && (
+          <div style={{ marginTop: 14, background: 'rgba(139,26,26,.1)', border: '1px solid rgba(139,26,26,.3)', borderRadius: 3, padding: '12px 16px' }}>
+            <span className="field-label" style={{ display: 'block', marginBottom: 8 }}>⚔ Appartenance à un groupe</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {d.groupes.map((g, i) => (
+                <div key={i} style={{ background: 'rgba(139,26,26,.2)', border: '1px solid rgba(200,80,80,.4)', borderRadius: 3, padding: '5px 14px' }}>
+                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, color: '#ff9966' }}>{g.nomGroupe}</span>
+                  {g.role && <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'rgba(244,237,216,.6)', marginLeft: 8, letterSpacing: 1 }}>{g.role}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="actions-row">
           <button className="btn-gold" onClick={() => exportPDF(d, infs, enqs, showNotif)}>📄 Exporter en PDF (pour le juge)</button>
           <button className="btn-blue" onClick={() => setShowEnquete(true)}>🔍 Créer un dossier d'enquête</button>
