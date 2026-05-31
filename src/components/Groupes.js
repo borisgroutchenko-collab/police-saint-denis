@@ -111,6 +111,7 @@ function GroupeModal({ groupe, citoyens, onClose, onSaved, showNotif }) {
     ));
   }
   function updateRole(i, role) { setMembres(m => m.map((x, j) => j === i ? { ...x, role } : x)); }
+  function updatePseudo(i, pseudo) { setMembres(m => m.map((x, j) => j === i ? { ...x, pseudo } : x)); }
 
   // Synchronise l'appartenance au groupe dans le casier de chaque membre
   async function syncMembresGroupe(groupeId, nomGroupe, nouveauxMembres, anciensMembres) {
@@ -220,6 +221,10 @@ function GroupeModal({ groupe, citoyens, onClose, onSaved, showNotif }) {
                   <input type="text" className="field-input" placeholder="Ex: Chef, Lieutenant, Membre..." value={m.role || ''} onChange={e => updateRole(i, e.target.value)} />
                 </div>
               </div>
+              <div style={{ marginTop: 8 }}>
+                <label className="field-label">Pseudonyme(s) connu(s)</label>
+                <input type="text" className="field-input" placeholder="Ex: Le Borgne, Black Jack, ..." value={m.pseudo || ''} onChange={e => updatePseudo(i, e.target.value)} />
+              </div>
             </div>
           ))}
         </div>
@@ -234,7 +239,7 @@ function GroupeModal({ groupe, citoyens, onClose, onSaved, showNotif }) {
 }
 
 // ── Vue détail groupe ──────────────────────────────────────────
-function GroupeDetail({ groupe, enqs, agents, onBack, onEdit, onDelete, onReload, showNotif }) {
+function GroupeDetail({ groupe, enqs, plaintes, agents, onBack, onEdit, onDelete, onReload, showNotif }) {
   const [showEnquete, setShowEnquete] = useState(false);
   const [editEnquete, setEditEnquete] = useState(null);
   const [lightbox, setLightbox] = useState(null);
@@ -286,6 +291,7 @@ function GroupeDetail({ groupe, enqs, agents, onBack, onEdit, onDelete, onReload
                 <div key={i} style={{ background: 'rgba(0,0,0,.25)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 3, padding: '10px 14px' }}>
                   <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, fontWeight: 700, color: 'var(--paper)' }}>{m.prenom} {m.nom}</div>
                   {m.role && <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'var(--gold)', letterSpacing: 1, marginTop: 3 }}>{m.role}</div>}
+                  {m.pseudo && <div style={{ fontSize: 12, color: 'rgba(244,237,216,.5)', fontStyle: 'italic', marginTop: 3 }}>alias {m.pseudo}</div>}
                 </div>
               ))}
             </div>
@@ -298,6 +304,44 @@ function GroupeDetail({ groupe, enqs, agents, onBack, onEdit, onDelete, onReload
           <button className="btn-red" onClick={onDelete}>🗑 Supprimer le groupe</button>
         </div>
       </div>
+
+      {/* Plaintes liées au groupe */}
+      {plaintes && plaintes.filter(p => p.statut === 'ouverte' || p.statut === 'instruite').length > 0 && (
+        <div className="card" style={{ marginTop: 16, borderLeft: '4px solid #ffcc44' }}>
+          <div className="card-title" style={{ color: '#ffcc44' }}>
+            📝 Dépôts de Plainte — Enquêtes en cours ({plaintes.filter(p => p.statut === 'ouverte' || p.statut === 'instruite').length})
+          </div>
+          {plaintes.filter(p => p.statut === 'ouverte' || p.statut === 'instruite').map(p => {
+            const STATUTS = { ouverte: { label: '🔴 Ouverte', color: '#ff6b6b' }, instruite: { label: '🟡 En instruction', color: '#ffcc44' } };
+            const s = STATUTS[p.statut] || STATUTS.ouverte;
+            return (
+              <div key={p.id} style={{ background: 'rgba(255,204,68,.06)', border: '1px solid rgba(255,204,68,.25)', borderRadius: 3, padding: '12px 16px', marginBottom: 8 }}>
+                <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: s.color, letterSpacing: 1, marginBottom: 4 }}>
+                  📅 {p.date || '—'} — <span style={{ color: s.color }}>{s.label}</span>
+                  {p.agent && <span style={{ marginLeft: 10, color: 'rgba(201,168,76,.8)' }}>👮 {p.agent}</span>}
+                </div>
+                <div style={{ fontSize: 14, color: 'var(--paper)', marginBottom: 4 }}>
+                  <span style={{ color: '#ff9966' }}>Plaignant(s) :</span> {p.plaintifsStr || '—'}
+                </div>
+                {p.faits && <div style={{ fontSize: 13, color: 'rgba(244,237,216,.7)', fontStyle: 'italic', lineHeight: 1.5 }}>{p.faits.length > 200 ? p.faits.slice(0, 200) + '…' : p.faits}</div>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {plaintes && plaintes.filter(p => p.statut === 'classee').length > 0 && (
+        <div className="card" style={{ marginTop: 16, borderLeft: '4px solid #90ee90' }}>
+          <div className="card-title" style={{ color: '#90ee90' }}>
+            📝 Plaintes classées ({plaintes.filter(p => p.statut === 'classee').length})
+          </div>
+          {plaintes.filter(p => p.statut === 'classee').map(p => (
+            <div key={p.id} style={{ background: 'rgba(20,80,20,.08)', border: '1px solid rgba(20,120,20,.2)', borderRadius: 3, padding: '10px 14px', marginBottom: 6 }}>
+              <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: '#90ee90', letterSpacing: 1, marginBottom: 3 }}>📅 {p.date || '—'} — 🟢 Classée</div>
+              <div style={{ fontSize: 13, color: 'rgba(244,237,216,.7)' }}>{p.plaintifsStr || '—'}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Dossiers d'enquête */}
       {enqs.length > 0 && (
@@ -351,6 +395,7 @@ export default function Groupes({ showNotif }) {
   const [view, setView] = useState('list');
   const [selected, setSelected] = useState(null);
   const [selectedEnqs, setSelectedEnqs] = useState([]);
+  const [selectedPlaintes, setSelectedPlaintes] = useState([]);
   const [modal, setModal] = useState(null);
 
   const load = useCallback(async () => {
@@ -373,8 +418,13 @@ export default function Groupes({ showNotif }) {
   async function openGroupe(groupe) {
     try {
       const enqSnap = await getDocs(query(collection(db, 'groupes', groupe.id, 'enquetes'), orderBy('createdAt', 'desc')));
+      const plSnap = await getDocs(collection(db, 'plaintes'));
+      const groupePlaintes = plSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(p => p.groupesLies && p.groupesLies.includes(groupe.id));
       setSelected(groupe);
       setSelectedEnqs(enqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setSelectedPlaintes(groupePlaintes);
       setView('detail');
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
   }
@@ -383,8 +433,13 @@ export default function Groupes({ showNotif }) {
     if (!selected) return;
     const gSnap = await getDoc(doc(db, 'groupes', selected.id));
     const enqSnap = await getDocs(query(collection(db, 'groupes', selected.id, 'enquetes'), orderBy('createdAt', 'desc')));
+    const plSnap = await getDocs(collection(db, 'plaintes'));
+    const groupePlaintes = plSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(p => p.groupesLies && p.groupesLies.includes(selected.id));
     setSelected({ id: selected.id, ...gSnap.data() });
     setSelectedEnqs(enqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    setSelectedPlaintes(groupePlaintes);
     load();
   }
 
@@ -431,7 +486,7 @@ export default function Groupes({ showNotif }) {
             showNotif={showNotif} />
         )}
         <GroupeDetail
-          groupe={current} enqs={selectedEnqs} agents={agents}
+          groupe={current} enqs={selectedEnqs} plaintes={selectedPlaintes} agents={agents}
           onBack={() => { setView('list'); setSelected(null); load(); }}
           onEdit={() => setModal(current)}
           onDelete={deleteGroupe}

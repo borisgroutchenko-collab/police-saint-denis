@@ -49,7 +49,7 @@ function nomCompletMis(m) {
 }
 
 // ── Modal dépôt de plainte (création ET modification complète) ─
-function PlainteModal({ plainte, citoyens, agents, onClose, onSaved, showNotif }) {
+function PlainteModal({ plainte, citoyens, agents, groupes, onClose, onSaved, showNotif }) {
   const now = new Date();
   const [form, setForm] = useState({
     date:   plainte?.date   || now.toISOString().split('T')[0],
@@ -70,6 +70,9 @@ function PlainteModal({ plainte, citoyens, agents, onClose, onSaved, showNotif }
       ? plainte.misEnCause
       : [{ inconnu: false, citoyenId: '', nom: '', prenom: '', carteId: '' }]
   );
+
+  // Groupes mis en cause
+  const [groupesMisEnCause, setGroupesMisEnCause] = useState(plainte?.groupesMisEnCause || []);
 
   // Plaignants
   function addPlaignant() { setPlaignants(p => [...p, { citoyenId: '', nom: '', prenom: '' }]); }
@@ -93,7 +96,8 @@ function PlainteModal({ plainte, citoyens, agents, onClose, onSaved, showNotif }
     if (!plaignants.some(p => p.citoyenId)) { showNotif('Sélectionnez au moins un plaignant dans la liste des citoyens', true); return; }
     const plaintifsStr = plaignants.filter(p => p.citoyenId).map(p => (p.prenom ? p.prenom + ' ' : '') + (p.nom || '')).join(', ');
     const misStr = misEnCause.map(m => m.inconnu ? 'Inconnu (X)' : nomCompletMis(m) || 'Inconnu').join(', ');
-    const data = { ...form, plaignants, misEnCause, plaintifsStr, misStr, updatedAt: serverTimestamp() };
+    const groupesLies = groupesMisEnCause.filter(g => g.groupeId).map(g => g.groupeId);
+    const data = { ...form, plaignants, misEnCause, groupesMisEnCause, plaintifsStr, misStr, groupesLies, updatedAt: serverTimestamp() };
     try {
       let savedId = plainte?.id;
       if (plainte?.id) {
@@ -202,6 +206,40 @@ function PlainteModal({ plainte, citoyens, agents, onClose, onSaved, showNotif }
                   )}
                 </>
               )}
+            </div>
+          ))}
+        </div>
+
+        {/* Groupes mis en cause */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <label className="field-label" style={{ margin: 0 }}>Groupe(s) mis en cause</label>
+            <button className="btn-red" style={{ fontSize: 10, padding: '4px 10px', background: 'linear-gradient(135deg,#3d0a0a,#8B0000)', borderColor: '#CC0000', color: '#ffaaaa' }}
+              onClick={() => setGroupesMisEnCause(g => [...g, { groupeId: '', nomGroupe: '' }])}>
+              + Ajouter un groupe
+            </button>
+          </div>
+          {groupesMisEnCause.length === 0 && (
+            <div style={{ color: 'rgba(244,237,216,.3)', fontStyle: 'italic', fontSize: 13 }}>Aucun groupe mis en cause — optionnel.</div>
+          )}
+          {groupesMisEnCause.map((g, i) => (
+            <div key={i} style={{ background: 'rgba(139,26,26,.1)', border: '1px solid rgba(139,26,26,.3)', borderRadius: 3, padding: 12, marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: '#ff9966', letterSpacing: 1 }}>Groupe {i + 1}</span>
+                <button className="btn-red" style={{ fontSize: 10, padding: '2px 8px' }} onClick={() => setGroupesMisEnCause(gs => gs.filter((_, j) => j !== i))}>✕ Retirer</button>
+              </div>
+              {groupes.length > 0 ? (
+                <select className="field-select" value={g.groupeId || ''} onChange={e => {
+                  const gr = groupes.find(x => x.id === e.target.value);
+                  setGroupesMisEnCause(gs => gs.map((x, j) => j !== i ? x : gr ? { groupeId: gr.id, nomGroupe: gr.nom } : { groupeId: '', nomGroupe: '' }));
+                }}>
+                  <option value="">— Sélectionner un groupe —</option>
+                  {groupes.map(gr => <option key={gr.id} value={gr.id}>{gr.nom}{gr.territoire ? ' (' + gr.territoire + ')' : ''}</option>)}
+                </select>
+              ) : (
+                <div style={{ color: '#ff9966', fontFamily: "'Special Elite', cursive", fontSize: 12 }}>⚠ Aucun groupe enregistré.</div>
+              )}
+              {g.groupeId && <div style={{ marginTop: 6, fontSize: 12, color: '#ff9966', fontFamily: "'Special Elite', cursive" }}>✓ {g.nomGroupe}</div>}
             </div>
           ))}
         </div>
@@ -467,6 +505,18 @@ function PlainteDetail({ plainte, agents, citoyens, casiers, onBack, onEdit, onD
           ))}
         </div>
 
+        {/* Groupes mis en cause */}
+        {(plainte.groupesMisEnCause || []).filter(g => g.groupeId).length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <span className="field-label" style={{ display: 'block', marginBottom: 10 }}>⚔ Groupe(s) mis en cause</span>
+            {plainte.groupesMisEnCause.filter(g => g.groupeId).map((g, i) => (
+              <div key={i} style={{ background: 'rgba(139,26,26,.12)', border: '1px solid rgba(139,26,26,.3)', borderRadius: 3, padding: '10px 16px', marginBottom: 6 }}>
+                <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: '#ff9966' }}>⚔ {g.nomGroupe}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Faits */}
         {plainte.faits && (
           <div style={{ marginBottom: 16 }}>
@@ -513,6 +563,7 @@ export default function Plaintes({ showNotif }) {
   const [plaintes, setPlaintes] = useState([]);
   const [citoyens, setCitoyens] = useState([]);
   const [agents, setAgents] = useState([]);
+  const [groupes, setGroupes] = useState([]);
   const [casiers, setCasiers] = useState({});
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -524,15 +575,17 @@ export default function Plaintes({ showNotif }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [pSnap, cSnap, aSnap, casSnap] = await Promise.all([
+      const [pSnap, cSnap, aSnap, casSnap, gSnap] = await Promise.all([
         getDocs(query(collection(db, 'plaintes'), orderBy('createdAt', 'desc'))),
         getDocs(query(collection(db, 'citoyens'), orderBy('nomComplet'))),
         getDocs(query(collection(db, 'effectif'), orderBy('nom'))),
         getDocs(collection(db, 'casier')),
+        getDocs(query(collection(db, 'groupes'), orderBy('nom'))),
       ]);
       setPlaintes(pSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setCitoyens(cSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setAgents(aSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setGroupes(gSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       const cm = {};
       casSnap.forEach(d => { cm[d.id] = { id: d.id, ...d.data() }; });
       setCasiers(cm);
@@ -563,7 +616,7 @@ export default function Plaintes({ showNotif }) {
     return (
       <>
         {showModal && (
-          <PlainteModal plainte={current} citoyens={citoyens} agents={agents}
+          <PlainteModal plainte={current} citoyens={citoyens} agents={agents} groupes={groupes}
             onClose={() => setShowModal(false)}
             onSaved={() => { setShowModal(false); load(); }}
             showNotif={showNotif} />
@@ -583,7 +636,7 @@ export default function Plaintes({ showNotif }) {
   return (
     <div>
       {showModal && (
-        <PlainteModal plainte={null} citoyens={citoyens} agents={agents}
+        <PlainteModal plainte={null} citoyens={citoyens} agents={agents} groupes={groupes}
           onClose={() => setShowModal(false)}
           onSaved={() => { setShowModal(false); load(); }}
           showNotif={showNotif} />
