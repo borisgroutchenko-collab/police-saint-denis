@@ -183,7 +183,7 @@ export default function Verbalization({ showNotif }) {
         <div className="form-grid three" style={{ marginBottom: 16 }}>
           <div>
             <label className="field-label">N° Pièce d'identité *</label>
-            <input type="text" className="field-input" placeholder="Ex: SD-1905-001" value={form.idNum} onChange={e => setForm(f => ({ ...f, idNum: e.target.value }))} />
+            <input type="text" className="field-input" placeholder="Ex: 1111" value={form.idNum} onChange={e => setForm(f => ({ ...f, idNum: e.target.value }))} />
           </div>
           <div>
             <label className="field-label">Sexe</label>

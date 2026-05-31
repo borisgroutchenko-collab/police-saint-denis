@@ -74,7 +74,7 @@ function CitoyenModal({ citoyen, onClose, onSaved, showNotif }) {
         <div className="form-grid" style={{ marginBottom: 16 }}>
           <div>
             <label className="field-label">N° Carte d'identité</label>
-            <input type="text" className="field-input" placeholder="Ex: SD-1905-001" value={form.carteId} onChange={e => setForm(f => ({ ...f, carteId: e.target.value }))} />
+            <input type="text" className="field-input" placeholder="Ex: 1111" value={form.carteId} onChange={e => setForm(f => ({ ...f, carteId: e.target.value }))} />
           </div>
           <div>
             <label className="field-label">N° Télégramme</label>

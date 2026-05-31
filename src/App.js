@@ -73,9 +73,9 @@ function Login({ onLogin }) {
 // ── Navigation tabs ──────────────────────────────────────────
 const SECTIONS = [
   { key: 'citoyens',      label: '👥 Citoyens' },
+  { key: 'plaintes',      label: '📝 Dépôts de Plainte' },
   { key: 'verbalization', label: '📋 Verbalisation' },
   { key: 'casier',        label: '🗄 Casier Judiciaire' },
-  { key: 'plaintes',      label: '📝 Dépôts de Plainte' },
   { key: 'notes',         label: '📌 Notes' },
   { key: 'penal',         label: '📖 Code Pénal' },
   { key: 'effectif',      label: '👮 Effectif' },

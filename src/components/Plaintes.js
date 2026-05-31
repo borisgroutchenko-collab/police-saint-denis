@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../firebase';
 import {
   collection, getDocs, addDoc, deleteDoc, updateDoc,
-  doc, orderBy, query, serverTimestamp, getDoc, setDoc, increment,
+  doc, orderBy, query, serverTimestamp, getDoc, setDoc, increment, writeBatch,
 } from 'firebase/firestore';
 import { ALL_INFRACTIONS } from '../data/penalCode';
 
@@ -13,6 +13,37 @@ const STATUTS = [
 ];
 
 // ── Helpers ────────────────────────────────────────────────────
+// Synchronise les signalements de plainte dans les casiers des mis en cause.
+// - Pour chaque mis en cause identifié : crée/met à jour casier/{key}/plaintesSingalees/{plainteId}
+// - Si statut = 'classee' et casiersLies vide (blanchi) : supprime le signalement
+async function syncPlainteCasiers(plainteId, misEnCause, plaintifsStr, date, faits, statut, casiersLies) {
+  for (const m of misEnCause) {
+    if (m.inconnu || !m.nom) continue;
+    const casierKey = m.carteId || ((m.prenom || '') + '_' + m.nom).replace(/ /g, '_');
+    const sigRef = doc(db, 'casier', casierKey, 'plaintesSignalees', plainteId);
+    const blanchi = statut === 'classee' && (!casiersLies || !casiersLies.includes(casierKey));
+    if (blanchi) {
+      try { await deleteDoc(sigRef); } catch (e) {}
+    } else {
+      // Crée le casier s'il n'existe pas
+      const casRef = doc(db, 'casier', casierKey);
+      const casSnap = await getDoc(casRef);
+      if (!casSnap.exists()) {
+        await setDoc(casRef, {
+          idNum: m.carteId || '', nom: m.nom, prenom: m.prenom || '',
+          nomComplet: (m.prenom ? m.prenom + ' ' : '') + m.nom,
+          sexe: '', age: 0, createdAt: serverTimestamp(),
+          totalAmende: 0, sisika: false, nbInfractions: 0,
+        });
+      }
+      await setDoc(sigRef, {
+        plainteId, plaintifsStr, date, faits: faits || '', statut,
+        misNom: m.nom, misPrenom: m.prenom || '',
+        updatedAt: serverTimestamp(),
+      });
+    }
+  }
+}
 function nomCompletMis(m) {
   return (m.prenom ? m.prenom + ' ' : '') + (m.nom || '');
 }
@@ -64,13 +95,18 @@ function PlainteModal({ plainte, citoyens, agents, onClose, onSaved, showNotif }
     const misStr = misEnCause.map(m => m.inconnu ? 'Inconnu (X)' : nomCompletMis(m) || 'Inconnu').join(', ');
     const data = { ...form, plaignants, misEnCause, plaintifsStr, misStr, updatedAt: serverTimestamp() };
     try {
+      let savedId = plainte?.id;
       if (plainte?.id) {
         await updateDoc(doc(db, 'plaintes', plainte.id), data);
         showNotif('Plainte modifiée !');
       } else {
-        await addDoc(collection(db, 'plaintes'), { ...data, casiersLies: [], createdAt: serverTimestamp() });
+        const ref = await addDoc(collection(db, 'plaintes'), { ...data, casiersLies: [], createdAt: serverTimestamp() });
+        savedId = ref.id;
         showNotif('Plainte enregistrée !');
       }
+      // Synchroniser dans les casiers des mis en cause
+      const casiersLies = plainte?.casiersLies || [];
+      await syncPlainteCasiers(savedId, misEnCause, plaintifsStr, form.date, form.faits, form.statut, casiersLies);
       onSaved();
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
   }
@@ -171,7 +207,7 @@ function PlainteModal({ plainte, citoyens, agents, onClose, onSaved, showNotif }
                   </div>
                   <div style={{ marginTop: 8 }}>
                     <label className="field-label">N° Carte d'identité (si connu)</label>
-                    <input type="text" className="field-input" placeholder="Ex: SD-1905-001" value={m.carteId} onChange={e => updateMis(i, 'carteId', e.target.value)} />
+                    <input type="text" className="field-input" placeholder="Ex: 1111" value={m.carteId} onChange={e => updateMis(i, 'carteId', e.target.value)} />
                   </div>
                 </>
               )}
@@ -236,6 +272,13 @@ function VerbalisationModal({ plainte, misIndex, agents, onClose, onDone, showNo
       const existingLies = Array.isArray(plainte.casiersLies) ? plainte.casiersLies : [];
       const newLies = existingLies.includes(idNum) ? existingLies : [...existingLies, idNum];
       await updateDoc(doc(db, 'plaintes', plainte.id), { statut: 'instruite', casiersLies: newLies });
+      // Mettre à jour le signalement dans le casier : passe en "verbalisé"
+      await setDoc(doc(db, 'casier', idNum, 'plaintesSignalees', plainte.id), {
+        plainteId: plainte.id, plaintifsStr: plainte.plaintifsStr || '',
+        date: plainte.date || '', faits: plainte.faits || '',
+        statut: 'verbalise', misNom: mis.nom, misPrenom: mis.prenom || '',
+        updatedAt: serverTimestamp(),
+      });
       showNotif('Verbalisation créée et casier mis à jour !');
       onDone();
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
@@ -357,7 +400,12 @@ function PlainteDetail({ plainte, agents, citoyens, casiers, onBack, onEdit, onD
   const [modal, setModal] = useState(null); // null | { type: 'verbaliser', misIndex } | { type: 'lier' }
 
   async function changerStatut(s) {
-    try { await updateDoc(doc(db, 'plaintes', plainte.id), { statut: s }); onReload(); }
+    try {
+      await updateDoc(doc(db, 'plaintes', plainte.id), { statut: s });
+      // Si classée : retire le signalement des casiers non liés (blanchi)
+      await syncPlainteCasiers(plainte.id, plainte.misEnCause || [], plainte.plaintifsStr || '', plainte.date || '', plainte.faits || '', s, plainte.casiersLies || []);
+      onReload();
+    }
     catch (e) { showNotif('Erreur', true); }
   }
   async function delierCasier(casId) {
