@@ -24,7 +24,8 @@ function PlainteModal({ plainte, citoyens, agents, onClose, onSaved, showNotif }
     date:   plainte?.date   || now.toISOString().split('T')[0],
     heure:  plainte?.heure  || now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0'),
     agent:  plainte?.agent  || '',
-    faits:  plainte?.faits  || '',
+    faits:            plainte?.faits            || '',
+    elementsEnquete:  plainte?.elementsEnquete  || '',
     statut: plainte?.statut || 'ouverte',
   });
 
@@ -182,6 +183,12 @@ function PlainteModal({ plainte, citoyens, agents, onClose, onSaved, showNotif }
         <div style={{ marginBottom: 16 }}>
           <label className="field-label">Circonstances, lieu, description des faits</label>
           <textarea className="field-textarea" style={{ minHeight: 120 }} placeholder="Décrivez les circonstances, le lieu et les faits..." value={form.faits} onChange={e => setForm(f => ({ ...f, faits: e.target.value }))} />
+        </div>
+
+        {/* Éléments d'enquête */}
+        <div style={{ marginBottom: 16 }}>
+          <label className="field-label">Éléments d'enquête en cours</label>
+          <textarea className="field-textarea" style={{ minHeight: 100 }} placeholder="Témoignages recueillis, indices, pistes, suspects identifiés, actions en cours..." value={form.elementsEnquete} onChange={e => setForm(f => ({ ...f, elementsEnquete: e.target.value }))} />
         </div>
 
         <div className="actions-row">
@@ -426,6 +433,14 @@ function PlainteDetail({ plainte, agents, citoyens, casiers, onBack, onEdit, onD
           <div style={{ marginBottom: 16 }}>
             <span className="field-label">Circonstances et faits</span>
             <div style={{ fontSize: 14, color: 'rgba(244,237,216,.85)', lineHeight: 1.7, marginTop: 6, whiteSpace: 'pre-wrap', fontStyle: 'italic' }}>{plainte.faits}</div>
+          </div>
+        )}
+
+        {/* Éléments d'enquête */}
+        {plainte.elementsEnquete && (
+          <div style={{ marginBottom: 16, background: 'rgba(26,58,110,.15)', border: '1px solid rgba(26,58,110,.4)', borderLeft: '3px solid #6699cc', borderRadius: '0 4px 4px 0', padding: '14px 18px' }}>
+            <span className="field-label" style={{ color: '#9ec4ff' }}>🔍 Éléments d'enquête en cours</span>
+            <div style={{ fontSize: 14, color: 'rgba(244,237,216,.85)', lineHeight: 1.7, marginTop: 8, whiteSpace: 'pre-wrap' }}>{plainte.elementsEnquete}</div>
           </div>
         )}
 
