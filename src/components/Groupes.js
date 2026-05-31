@@ -93,9 +93,11 @@ function EnqueteModal({ groupeId, enquete, agents, onClose, onSaved, showNotif }
 // ── Modal création / modification groupe ───────────────────────
 function GroupeModal({ groupe, citoyens, onClose, onSaved, showNotif }) {
   const [form, setForm] = useState({
-    nom:        groupe?.nom        || '',
-    territoire: groupe?.territoire || '',
-    notes:      groupe?.notes      || '',
+    nom:          groupe?.nom          || '',
+    territoire:   groupe?.territoire   || '',
+    notes:        groupe?.notes        || '',
+    pseudonymes:  groupe?.pseudonymes  || '',
+    suspicions:   groupe?.suspicions   || '',
   });
   const [membres, setMembres] = useState(groupe?.membres || []);
 
@@ -136,7 +138,7 @@ function GroupeModal({ groupe, citoyens, onClose, onSaved, showNotif }) {
       const casierKey = nomComplet.toLowerCase().replace(/ /g, '_');
       const casierRef = doc(db, 'casier', casierKey);
       const snap = await getDoc(casierRef);
-      const groupeRef = { groupeId, nomGroupe, role: m.role || '' };
+      const groupeRef = { groupeId, nomGroupe, role: m.role || '', pseudo: m.pseudo || '' };
       if (!snap.exists()) {
         // Créer le casier automatiquement
         await setDoc(casierRef, {
@@ -191,7 +193,17 @@ function GroupeModal({ groupe, citoyens, onClose, onSaved, showNotif }) {
 
         <div style={{ marginBottom: 16 }}>
           <label className="field-label">Notes</label>
-          <textarea className="field-textarea" style={{ minHeight: 80 }} placeholder="Activités connues, dangerosité, observations..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+          <textarea className="field-textarea" style={{ minHeight: 70 }} placeholder="Activités connues, dangerosité, observations..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label className="field-label">Pseudonymes de membres connus</label>
+          <textarea className="field-textarea" style={{ minHeight: 60 }} placeholder="Ex: Le Borgne, Black Jack, La Veuve..." value={form.pseudonymes} onChange={e => setForm(f => ({ ...f, pseudonymes: e.target.value }))} />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label className="field-label">Suspicions</label>
+          <textarea className="field-textarea" style={{ minHeight: 70 }} placeholder="Activités illicites suspectées, affaires en cours..." value={form.suspicions} onChange={e => setForm(f => ({ ...f, suspicions: e.target.value }))} />
         </div>
 
         {/* Membres */}
@@ -276,9 +288,23 @@ function GroupeDetail({ groupe, enqs, plaintes, agents, onBack, onEdit, onDelete
         </div>
 
         {groupe.notes && (
-          <div style={{ marginBottom: 16, background: 'rgba(0,0,0,.2)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 3, padding: '12px 16px' }}>
+          <div style={{ marginBottom: 12, background: 'rgba(0,0,0,.2)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 3, padding: '12px 16px' }}>
             <span className="field-label">Notes</span>
             <div style={{ fontSize: 14, color: 'rgba(244,237,216,.85)', lineHeight: 1.7, marginTop: 6, whiteSpace: 'pre-wrap' }}>{groupe.notes}</div>
+          </div>
+        )}
+
+        {groupe.pseudonymes && (
+          <div style={{ marginBottom: 12, background: 'rgba(0,0,0,.2)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 3, padding: '12px 16px' }}>
+            <span className="field-label">Pseudonymes de membres connus</span>
+            <div style={{ fontSize: 14, color: 'rgba(244,237,216,.7)', lineHeight: 1.7, marginTop: 6, whiteSpace: 'pre-wrap', fontStyle: 'italic' }}>{groupe.pseudonymes}</div>
+          </div>
+        )}
+
+        {groupe.suspicions && (
+          <div style={{ marginBottom: 12, background: 'rgba(139,26,26,.1)', border: '1px solid rgba(139,26,26,.3)', borderRadius: 3, padding: '12px 16px' }}>
+            <span className="field-label" style={{ color: '#ff9966' }}>⚠ Suspicions</span>
+            <div style={{ fontSize: 14, color: 'rgba(244,237,216,.85)', lineHeight: 1.7, marginTop: 6, whiteSpace: 'pre-wrap' }}>{groupe.suspicions}</div>
           </div>
         )}
 

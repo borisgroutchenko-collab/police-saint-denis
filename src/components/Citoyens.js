@@ -97,7 +97,7 @@ function CitoyenModal({ citoyen, onClose, onSaved, showNotif }) {
 }
 
 // ── Fiche détail citoyen ───────────────────────────────────────
-function CitoyenDetail({ citoyen, casier, onBack, onEdit, onDelete, onGoToCasier }) {
+function CitoyenDetail({ citoyen, casier, groupes, onBack, onEdit, onDelete, onGoToCasier }) {
   const hasCasier = !!casier;
 
   return (
@@ -182,6 +182,20 @@ function CitoyenDetail({ citoyen, casier, onBack, onEdit, onDelete, onGoToCasier
           </div>
         )}
 
+        {/* Groupes d'appartenance */}
+        {groupes && groupes.length > 0 && (
+          <div style={{ marginBottom: 16, background: 'rgba(139,26,26,.1)', border: '1px solid rgba(139,26,26,.35)', borderRadius: 3, padding: '14px 16px' }}>
+            <span className="field-label" style={{ display: 'block', marginBottom: 10 }}>⚔ Appartenance à un groupe</span>
+            {groupes.map((g, i) => (
+              <div key={i} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: i < groupes.length - 1 ? 8 : 0, padding: '6px 10px', background: 'rgba(139,26,26,.15)', borderRadius: 3 }}>
+                <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: '#ff9966', fontWeight: 700 }}>⚔ {g.nomGroupe}</span>
+                {g.role && <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'var(--gold)', letterSpacing: 1 }}>{g.role}</span>}
+                {g.pseudo && <span style={{ fontSize: 12, color: 'rgba(244,237,216,.5)', fontStyle: 'italic' }}>alias {g.pseudo}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="actions-row">
           <button className="btn-gold" onClick={onEdit}>✏ Modifier la fiche</button>
           {hasCasier && (
@@ -199,10 +213,11 @@ function CitoyenDetail({ citoyen, casier, onBack, onEdit, onDelete, onGoToCasier
 // ── Composant principal ────────────────────────────────────────
 export default function Citoyens({ showNotif, onGoToCasier }) {
   const [citoyens, setCitoyens] = useState([]);
-  const [casiers, setCasiers] = useState({}); // { idNum: casierData }
+  const [casiers, setCasiers] = useState({});
+  const [groupesMap, setGroupesMap] = useState({}); // { citoyenId: [{ nomGroupe, role, pseudo }] }
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
-  const [view, setView] = useState('list'); // 'list' | 'detail'
+  const [view, setView] = useState('list');
   const [selected, setSelected] = useState(null);
   const [modal, setModal] = useState(null);
 
@@ -213,7 +228,7 @@ export default function Citoyens({ showNotif, onGoToCasier }) {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setCitoyens(list);
 
-      // Charger les casiers et indexer par nomComplet (prénom + nom)
+      // Charger les casiers
       const casierSnap = await getDocs(collection(db, 'casier'));
       const casierMap = {};
       casierSnap.forEach(d => {
@@ -221,6 +236,19 @@ export default function Citoyens({ showNotif, onGoToCasier }) {
         if (data.nomComplet) casierMap[data.nomComplet.toLowerCase()] = { id: d.id, ...data };
       });
       setCasiers(casierMap);
+
+      // Charger les groupes et indexer par citoyenId
+      const groupeSnap = await getDocs(collection(db, 'groupes'));
+      const gMap = {};
+      groupeSnap.forEach(gDoc => {
+        const g = gDoc.data();
+        (g.membres || []).forEach(m => {
+          if (!m.citoyenId) return;
+          if (!gMap[m.citoyenId]) gMap[m.citoyenId] = [];
+          gMap[m.citoyenId].push({ groupeId: gDoc.id, nomGroupe: g.nom, role: m.role || '', pseudo: m.pseudo || '' });
+        });
+      });
+      setGroupesMap(gMap);
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
     setLoading(false);
   }, [showNotif]);
@@ -252,6 +280,7 @@ export default function Citoyens({ showNotif, onGoToCasier }) {
   // ── Vue détail ──
   if (view === 'detail' && selected) {
     const casier = casiers[(selected.nomComplet || '').toLowerCase()] || null;
+    const groupesCitoyen = groupesMap[selected.id] || [];
     return (
       <>
         {modal && (
@@ -265,6 +294,7 @@ export default function Citoyens({ showNotif, onGoToCasier }) {
         <CitoyenDetail
           citoyen={selected}
           casier={casier}
+          groupes={groupesCitoyen}
           onBack={() => { setView('list'); setSelected(null); }}
           onEdit={() => setModal(selected)}
           onDelete={deleteCitoyen}

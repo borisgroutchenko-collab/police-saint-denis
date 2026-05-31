@@ -326,9 +326,10 @@ function DossierDetail({ dossier, infs, enqs, plaintesSignalees, onBack, onReloa
             <span className="field-label" style={{ display: 'block', marginBottom: 8 }}>⚔ Appartenance à un groupe</span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {d.groupes.map((g, i) => (
-                <div key={i} style={{ background: 'rgba(139,26,26,.2)', border: '1px solid rgba(200,80,80,.4)', borderRadius: 3, padding: '5px 14px' }}>
-                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, color: '#ff9966' }}>{g.nomGroupe}</span>
+                <div key={i} style={{ background: 'rgba(139,26,26,.2)', border: '1px solid rgba(200,80,80,.4)', borderRadius: 3, padding: '8px 14px' }}>
+                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, color: '#ff9966' }}>⚔ {g.nomGroupe}</span>
                   {g.role && <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'rgba(244,237,216,.6)', marginLeft: 8, letterSpacing: 1 }}>{g.role}</span>}
+                  {g.pseudo && <div style={{ fontSize: 12, color: 'rgba(244,237,216,.5)', fontStyle: 'italic', marginTop: 3 }}>alias {g.pseudo}</div>}
                 </div>
               ))}
             </div>
