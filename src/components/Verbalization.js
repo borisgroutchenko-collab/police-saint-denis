@@ -33,6 +33,9 @@ export default function Verbalization({ showNotif }) {
   const [photos, setPhotos] = useState([]);
   const [photoUrl, setPhotoUrl] = useState('');
   const [lightbox, setLightbox] = useState(null);
+  const [saisiesObjets, setSaisiesObjets] = useState([]);
+  const [saisiesArmes, setSaisiesArmes] = useState([]);
+  const SERIAL_REGEX = /^\d{10}-\d{4}$/;
 
   const total = selected.reduce((s, x) => s + x.amende, 0);
   const hasSisika = selected.some(x => x.sisika);
@@ -65,6 +68,8 @@ export default function Verbalization({ showNotif }) {
     setCitoyenChoisi(null);
     setSelected([]);
     setPhotos([]);
+    setSaisiesObjets([]);
+    setSaisiesArmes([]);
   }
 
   async function submit() {
@@ -105,6 +110,18 @@ export default function Verbalization({ showNotif }) {
         sisika: hasSisika || (dSnap.exists() && dSnap.data().sisika),
         nbInfractions: increment(1),
       });
+      // Enregistrer les saisies
+      const saisieBase = {
+        source: 'verbalisation',
+        date: form.date, heure: form.heure, agent: form.agent,
+        nomComplet, createdAt: serverTimestamp(),
+      };
+      for (const obj of saisiesObjets.filter(o => o.trim())) {
+        await addDoc(collection(db, 'saisies'), { ...saisieBase, type: 'objet', description: obj });
+      }
+      for (const arme of saisiesArmes.filter(a => a.nom || a.serie)) {
+        await addDoc(collection(db, 'saisies'), { ...saisieBase, type: 'arme', description: arme.nom, serie: arme.serie || '' });
+      }
       showNotif('Verbalisation enregistrée !');
       resetForm();
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
@@ -241,6 +258,53 @@ export default function Verbalization({ showNotif }) {
                 <button className="photo-remove" onClick={() => setPhotos(p => p.filter((_, j) => j !== i))}>✕</button>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Saisies */}
+        <div style={{ marginTop: 24, padding: '16px', background: 'rgba(201,168,76,.06)', border: '1px solid rgba(201,168,76,.25)', borderRadius: 3 }}>
+          <label className="field-label" style={{ display: 'block', marginBottom: 12, fontSize: 13 }}>📦 Objets & Armes saisis</label>
+
+          <div style={{ marginBottom: 14 }}>
+            <label className="field-label" style={{ fontSize: 11, marginBottom: 6 }}>Objets saisis (écriture libre)</label>
+            {saisiesObjets.map((obj, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+                <input
+                  type="text" className="field-input" style={{ flex: 1 }}
+                  placeholder="Ex: Sac de billets, documents falsifiés..."
+                  value={obj}
+                  onChange={e => setSaisiesObjets(s => s.map((x, j) => j === i ? e.target.value : x))}
+                />
+                <button className="btn-red" style={{ padding: '6px 10px', fontSize: 12 }}
+                  onClick={() => setSaisiesObjets(s => s.filter((_, j) => j !== i))}>✕</button>
+              </div>
+            ))}
+            <button className="btn-gold" style={{ fontSize: 11, padding: '5px 12px' }}
+              onClick={() => setSaisiesObjets(s => [...s, ''])}>+ Ajouter un objet</button>
+          </div>
+
+          <div>
+            <label className="field-label" style={{ fontSize: 11, marginBottom: 6 }}>Armes saisies</label>
+            {saisiesArmes.map((arme, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'center' }}>
+                <input
+                  type="text" className="field-input" style={{ flex: 2 }}
+                  placeholder="Nom de l'arme"
+                  value={arme.nom || ''}
+                  onChange={e => setSaisiesArmes(s => s.map((x, j) => j === i ? { ...x, nom: e.target.value } : x))}
+                />
+                <input
+                  type="text" className="field-input" style={{ flex: 2, fontFamily: "'Special Elite', cursive", letterSpacing: 1 }}
+                  placeholder="N° série : 0000000000-0000"
+                  value={arme.serie || ''}
+                  onChange={e => setSaisiesArmes(s => s.map((x, j) => j === i ? { ...x, serie: e.target.value } : x))}
+                />
+                <button className="btn-red" style={{ padding: '6px 10px', fontSize: 12 }}
+                  onClick={() => setSaisiesArmes(s => s.filter((_, j) => j !== i))}>✕</button>
+              </div>
+            ))}
+            <button className="btn-gold" style={{ fontSize: 11, padding: '5px 12px' }}
+              onClick={() => setSaisiesArmes(s => [...s, { nom: '', serie: '' }])}>+ Ajouter une arme</button>
           </div>
         </div>
 
