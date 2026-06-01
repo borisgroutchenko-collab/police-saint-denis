@@ -154,15 +154,12 @@ export function exportPDF(dossier, infs, enqs, showNotif) {
       var inf = infs[i];
       y = checkBreak(doc, y, pageRef);
 
-      var nbInfLines = (inf.infractions || []).length;
       var descText = inf.desc ? doc.splitTextToSize('Circonstances : ' + inf.desc, W - 30) : [];
-      var bh = 5 + nbInfLines * 4.8 + (descText.length > 0 ? descText.length * 4.5 + 1 : 0) + 5;
 
-      doc.setFillColor(30, 13, 0);
-      doc.roundedRect(12, y - 4, W - 24, bh, 2, 2, 'F');
+      // Filet doré léger au-dessus de chaque verbalisation
       setDraw(doc, GOLD);
-      doc.setLineWidth(0.3);
-      doc.roundedRect(12, y - 4, W - 24, bh, 2, 2, 'S');
+      doc.setLineWidth(0.15);
+      doc.line(13, y - 3, W - 13, y - 3);
 
       setFill(doc, GOLD);
       doc.setFont('times', 'bold');
@@ -229,14 +226,10 @@ export function exportPDF(dossier, infs, enqs, showNotif) {
       for (var j = 0; j < enqs.length; j++) {
         var enq = enqs[j];
         y = checkBreak(doc, y, pageRef);
-        var eFields = [enq.date, enq.localisation, enq.contact, enq.membres, enq.elementsEnquete].filter(Boolean).length;
-        var bh2 = 5 + eFields * 4.8 + 3;
-
-        doc.setFillColor(30, 13, 0);
-        doc.roundedRect(12, y - 4, W - 24, bh2, 2, 2, 'F');
+        // Filet doré léger au-dessus de chaque enquête
         setDraw(doc, GOLD);
-        doc.setLineWidth(0.3);
-        doc.roundedRect(12, y - 4, W - 24, bh2, 2, 2, 'S');
+        doc.setLineWidth(0.15);
+        doc.line(13, y - 3, W - 13, y - 3);
 
         setFill(doc, GOLD);
         doc.setFont('times', 'bold');
