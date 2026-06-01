@@ -5,6 +5,7 @@ import {
   doc, orderBy, query, serverTimestamp, getDoc, setDoc, increment, writeBatch,
 } from 'firebase/firestore';
 import { ALL_INFRACTIONS } from '../data/penalCode';
+import { exportPlaintePDF } from '../utils/exportPlaintePDF';
 
 const STATUTS = [
   { key: 'ouverte',   label: '🔴 Ouverte',        color: '#ff6b6b' },
@@ -51,9 +52,8 @@ function nomCompletMis(m) {
 // ── Modal dépôt de plainte (création ET modification complète) ─
 function PlainteModal({ plainte, citoyens, agents, groupes, onClose, onSaved, showNotif }) {
   const now = new Date();
-  const rpNow = '1905-' + String(now.getMonth() + 1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
   const [form, setForm] = useState({
-    date:   plainte?.date   || rpNow,
+    date:   plainte?.date   || now.toISOString().split('T')[0],
     heure:  plainte?.heure  || now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0'),
     agent:  plainte?.agent  || '',
     faits:            plainte?.faits            || '',
@@ -272,9 +272,7 @@ function VerbalisationModal({ plainte, misIndex, agents, onClose, onDone, showNo
   const [selected, setSelected] = useState([]);
   const [agent, setAgent] = useState('');
   const [note, setNote] = useState('Verbalisation suite à dépôt de plainte');
-  const [totalOverride, setTotalOverride] = useState('');
-  const totalAuto = selected.reduce((s, x) => s + x.amende, 0);
-  const total = totalOverride !== '' ? parseInt(totalOverride) || 0 : totalAuto;
+  const total = selected.reduce((s, x) => s + x.amende, 0);
   const hasSisika = selected.some(x => x.sisika);
   function toggle(art) { setSelected(p => p.find(x => x.num === art.num) ? p.filter(x => x.num !== art.num) : [...p, art]); }
 
@@ -283,9 +281,8 @@ function VerbalisationModal({ plainte, misIndex, agents, onClose, onDone, showNo
     const nomC = nomCompletMis(mis);
     const casierKey = nomC.toLowerCase().replace(/ /g, '_');
     const now = new Date();
-    const rpDate = '1905-' + String(now.getMonth() + 1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
     const record = {
-      date: rpDate,
+      date: now.toISOString().split('T')[0],
       heure: now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0'),
       agent: agent || 'Non précisé', nom: mis.nom, prenom: mis.prenom || '',
       idNum: mis.carteId || casierKey, nomComplet: nomC, sexe: '', age: 0,
@@ -355,23 +352,8 @@ function VerbalisationModal({ plainte, misIndex, agents, onClose, onDone, showNo
           </div>
         </div>
         <div className="total-box" style={{ marginBottom: 16 }}>
-          <div>
-            <div className="total-label">Amende totale</div>
-            {hasSisika && <span className="sisika-badge">⚠ SÉJOUR À SISIKA</span>}
-            <div style={{ fontSize: 10, color: 'rgba(201,168,76,.5)', fontFamily: "'Special Elite', cursive", marginTop: 4 }}>
-              Calculé : {totalAuto} $
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input
-              type="number" min="0"
-              style={{ width: 90, textAlign: 'right', fontSize: 22, fontFamily: "'Special Elite', cursive", color: 'var(--gold)', background: 'rgba(0,0,0,.3)', border: '1px solid rgba(201,168,76,.4)', borderRadius: 3, padding: '4px 8px' }}
-              placeholder={totalAuto}
-              value={totalOverride}
-              onChange={e => setTotalOverride(e.target.value)}
-            />
-            <span className="total-amount" style={{ fontSize: 22 }}>$</span>
-          </div>
+          <div><div className="total-label">Amende totale</div>{hasSisika && <span className="sisika-badge">⚠ SÉJOUR À SISIKA</span>}</div>
+          <div className="total-amount">{total} $</div>
         </div>
         <div className="actions-row">
           <button className="btn-submit" onClick={submit}>⚖ Créer la verbalisation</button>
@@ -570,6 +552,7 @@ function PlainteDetail({ plainte, agents, citoyens, casiers, onBack, onEdit, onD
 
         <div className="actions-row">
           <button className="btn-gold" onClick={onEdit}>✏ Modifier la plainte</button>
+          <button className="btn-submit" onClick={() => exportPlaintePDF(plainte, casiersLies, showNotif)}>📄 Exporter en PDF (pour le juge)</button>
           <button className="btn-red" onClick={onDelete}>🗑 Supprimer</button>
         </div>
       </div>
