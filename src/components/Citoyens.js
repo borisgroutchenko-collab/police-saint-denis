@@ -89,6 +89,28 @@ function CitoyenModal({ citoyen, onClose, onSaved, showNotif }) {
           <input type="text" className="field-input" placeholder="Ex: Fermier, Marchand, Médecin..." value={form.metier} onChange={e => setForm(f => ({ ...f, metier: e.target.value }))} />
         </div>
 
+        <div className="form-grid" style={{ marginBottom: 16 }}>
+          <div>
+            <label className="field-label">Statut</label>
+            <select className="field-select" value={form.statut} onChange={e => setForm(f => ({ ...f, statut: e.target.value }))}>
+              <option value="actif">✓ Actif</option>
+              <option value="decede">⚰ Décédé</option>
+              <option value="disparu">❓ Disparu</option>
+            </select>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', paddingTop: 22 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontFamily: "'Special Elite', cursive", fontSize: 13, color: 'rgba(244,237,216,.8)', userSelect: 'none' }}>
+              <input
+                type="checkbox"
+                checked={!!form.portArme}
+                onChange={e => setForm(f => ({ ...f, portArme: e.target.checked }))}
+                style={{ width: 16, height: 16, cursor: 'pointer' }}
+              />
+              🔫 Permis de port d'arme longue
+            </label>
+          </div>
+        </div>
+
         <div className="actions-row">
           <button className="btn-submit" onClick={save}>💾 Sauvegarder</button>
           <button className="btn-red" onClick={onClose}>Annuler</button>
@@ -149,6 +171,18 @@ function CitoyenDetail({ citoyen, casier, groupes, onBack, onEdit, onDelete, onG
           <div>
             <span className="field-label">Métier</span>
             <div style={{ fontSize: 15, color: 'var(--paper)' }}>{citoyen.metier || '—'}</div>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <span className="field-label">Statut</span>
+            <div style={{ fontSize: 15, color: citoyen.statut === 'decede' ? '#888' : citoyen.statut === 'disparu' ? '#ffcc44' : 'var(--paper)' }}>
+              {citoyen.statut === 'decede' ? '⚰ Décédé' : citoyen.statut === 'disparu' ? '❓ Disparu' : '✓ Actif'}
+            </div>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <span className="field-label">Port d'arme longue</span>
+            <div style={{ fontSize: 15, color: citoyen.portArme ? '#90ee90' : 'rgba(244,237,216,.5)' }}>
+              {citoyen.portArme ? '✓ Autorisé' : '✗ Non autorisé'}
+            </div>
           </div>
         </div>
 
@@ -356,7 +390,12 @@ export default function Citoyens({ showNotif, onGoToCasier }) {
                   {hasCasier && casier.mostWanted && (
                     <div style={{ marginBottom: 8 }}><span className="badge-mw">🎯 MOST WANTED</span></div>
                   )}
-                  <div className="dossier-name">{c.nomComplet}</div>
+                  <div className="dossier-name">
+                    {c.nomComplet}
+                    {c.statut === 'decede' && <span style={{ marginLeft: 8, fontSize: 11, color: '#888', fontFamily: "'Special Elite', cursive" }}>⚰ Décédé</span>}
+                    {c.statut === 'disparu' && <span style={{ marginLeft: 8, fontSize: 11, color: '#ffcc44', fontFamily: "'Special Elite', cursive" }}>❓ Disparu</span>}
+                    {c.portArme && <span style={{ marginLeft: 8, fontSize: 11, color: 'rgba(201,168,76,.7)', fontFamily: "'Special Elite', cursive" }}>🔫</span>}
+                  </div>
                   <div className="dossier-meta">
                     {c.age ? c.age + ' ans' : ''}
                     {c.age && c.metier ? ' • ' : ''}
