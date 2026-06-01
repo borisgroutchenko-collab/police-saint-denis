@@ -6,6 +6,7 @@ import {
 } from 'firebase/firestore';
 import { ALL_INFRACTIONS } from '../data/penalCode';
 import { exportPDF } from '../utils/exportPDF';
+import { where } from 'firebase/firestore';
 
 // ── Edit modal ────────────────────────────────────────────────
 function EditModal({ dossierId, infraction, agents, onClose, onSaved, showNotif }) {
@@ -519,6 +520,19 @@ export default function Casier({ showNotif, initialDossierId, onDossierOpened })
           plaintesReelles.push(sig);
         }
       }
+
+      // Enrichir avec les données complètes du citoyen (comte, metier, telegram, armes)
+      try {
+        const nomComplet = dData.nomComplet || '';
+        const citSnap = await getDocs(query(collection(db, 'citoyens'), where('nomComplet', '==', nomComplet)));
+        if (!citSnap.empty) {
+          const citData = citSnap.docs[0].data();
+          dData.comte   = citData.comte   || dData.comte   || '';
+          dData.metier  = citData.metier  || dData.metier  || '';
+          dData.telegram= citData.telegram|| dData.telegram|| '';
+          dData.armes   = citData.armes   || dData.armes   || [];
+        }
+      } catch (_) {}
 
       setCurrentDossier(dData);
       setCurrentInfs(infSnap.docs.map(d => ({ id: d.id, ...d.data() })));
