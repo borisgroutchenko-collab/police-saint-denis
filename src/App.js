@@ -129,7 +129,6 @@ export default function App() {
         {section === 'citoyens'      && <Citoyens      showNotif={showNotif} onGoToCasier={goToCasier} />}
         {section === 'groupes'       && <Groupes       showNotif={showNotif} />}
         {section === 'plaintes'      && <Plaintes      showNotif={showNotif} />}
-        {section === 'verbalization' && <Verbalization showNotif={showNotif} />}
         {section === 'notes'         && <Notes         showNotif={showNotif} />}
         {section === 'penal'         && <CodePenal />}
         {section === 'effectif'      && <Effectif      showNotif={showNotif} />}
