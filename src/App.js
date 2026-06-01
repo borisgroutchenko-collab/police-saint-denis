@@ -10,6 +10,7 @@ import Citoyens from './components/Citoyens';
 import Plaintes from './components/Plaintes';
 import Notes from './components/Notes';
 import Groupes from './components/Groupes';
+import Convocations from './components/Convocations';
 import Saisies from './components/Saisies';
 
 // ── Logo (même image base64 que le fichier original) ──────────
@@ -80,6 +81,7 @@ const SECTIONS = [
   { key: 'verbalization', label: '📋 Verbalisation' },
   { key: 'casier',        label: '🗄 Casier Judiciaire' },
   { key: 'saisies',       label: '📦 Saisies' },
+  { key: 'convocations',  label: '📋 Convocations' },
   { key: 'notes',         label: '📌 Notes & Informations' },
   { key: 'penal',         label: '📖 Code Pénal' },
   { key: 'effectif',      label: '👮 Effectif' },
@@ -132,6 +134,7 @@ export default function App() {
         {section === 'groupes'       && <Groupes       showNotif={showNotif} />}
         {section === 'plaintes'      && <Plaintes      showNotif={showNotif} />}
         {section === 'saisies'       && <Saisies       showNotif={showNotif} />}
+        {section === 'convocations'  && <Convocations  showNotif={showNotif} />}
         {section === 'notes'         && <Notes         showNotif={showNotif} />}
         {section === 'penal'         && <CodePenal />}
         {section === 'effectif'      && <Effectif      showNotif={showNotif} />}
