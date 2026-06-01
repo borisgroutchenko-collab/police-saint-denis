@@ -6,6 +6,8 @@ import { ALL_INFRACTIONS } from '../data/penalCode';
 export default function Verbalization({ showNotif }) {
   const today = new Date();
   const nowTime = today.getHours().toString().padStart(2,'0') + ':' + today.getMinutes().toString().padStart(2,'0');
+  // Date roleplay : jour et mois réels, année 1905
+  const rpDate = '1905-' + String(today.getMonth() + 1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
 
   const [agents, setAgents] = useState([]);
   const [citoyens, setCitoyens] = useState([]);
@@ -21,7 +23,7 @@ export default function Verbalization({ showNotif }) {
   }, []);
 
   const emptyForm = {
-    date: today.toISOString().split('T')[0],
+    date: rpDate,
     heure: nowTime,
     agent: '',
     note: '',
@@ -33,11 +35,10 @@ export default function Verbalization({ showNotif }) {
   const [photos, setPhotos] = useState([]);
   const [photoUrl, setPhotoUrl] = useState('');
   const [lightbox, setLightbox] = useState(null);
-  const [saisiesObjets, setSaisiesObjets] = useState([]);
-  const [saisiesArmes, setSaisiesArmes] = useState([]);
-  const SERIAL_REGEX = /^\d{10}-\d{4}$/;
+  const [totalOverride, setTotalOverride] = useState('');
 
-  const total = selected.reduce((s, x) => s + x.amende, 0);
+  const totalAuto = selected.reduce((s, x) => s + x.amende, 0);
+  const total = totalOverride !== '' ? parseInt(totalOverride) || 0 : totalAuto;
   const hasSisika = selected.some(x => x.sisika);
 
   function handleCitoyenSelect(e) {
@@ -62,14 +63,13 @@ export default function Verbalization({ showNotif }) {
     const now = new Date();
     setForm({
       ...emptyForm,
-      date: now.toISOString().split('T')[0],
+      date: '1905-' + String(now.getMonth() + 1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0'),
       heure: now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0'),
     });
     setCitoyenChoisi(null);
     setSelected([]);
     setPhotos([]);
-    setSaisiesObjets([]);
-    setSaisiesArmes([]);
+    setTotalOverride('');
   }
 
   async function submit() {
@@ -110,18 +110,6 @@ export default function Verbalization({ showNotif }) {
         sisika: hasSisika || (dSnap.exists() && dSnap.data().sisika),
         nbInfractions: increment(1),
       });
-      // Enregistrer les saisies
-      const saisieBase = {
-        source: 'verbalisation',
-        date: form.date, heure: form.heure, agent: form.agent,
-        nomComplet, createdAt: serverTimestamp(),
-      };
-      for (const obj of saisiesObjets.filter(o => o.trim())) {
-        await addDoc(collection(db, 'saisies'), { ...saisieBase, type: 'objet', description: obj });
-      }
-      for (const arme of saisiesArmes.filter(a => a.nom || a.serie)) {
-        await addDoc(collection(db, 'saisies'), { ...saisieBase, type: 'arme', description: arme.nom, serie: arme.serie || '' });
-      }
       showNotif('Verbalisation enregistrée !');
       resetForm();
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
@@ -237,8 +225,20 @@ export default function Verbalization({ showNotif }) {
           <div>
             <div className="total-label">Amende totale</div>
             {hasSisika && <span className="sisika-badge">⚠ SÉJOUR À SISIKA</span>}
+            <div style={{ fontSize: 10, color: 'rgba(201,168,76,.5)', fontFamily: "'Special Elite', cursive", marginTop: 4 }}>
+              Calculé : {totalAuto} $
+            </div>
           </div>
-          <div className="total-amount">{total} $</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="number" min="0"
+              style={{ width: 90, textAlign: 'right', fontSize: 22, fontFamily: "'Special Elite', cursive", color: 'var(--gold)', background: 'rgba(0,0,0,.3)', border: '1px solid rgba(201,168,76,.4)', borderRadius: 3, padding: '4px 8px' }}
+              placeholder={totalAuto}
+              value={totalOverride}
+              onChange={e => setTotalOverride(e.target.value)}
+            />
+            <span className="total-amount" style={{ fontSize: 22 }}>$</span>
+          </div>
         </div>
 
         {/* Photos */}
@@ -258,53 +258,6 @@ export default function Verbalization({ showNotif }) {
                 <button className="photo-remove" onClick={() => setPhotos(p => p.filter((_, j) => j !== i))}>✕</button>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* Saisies */}
-        <div style={{ marginTop: 24, padding: '16px', background: 'rgba(201,168,76,.06)', border: '1px solid rgba(201,168,76,.25)', borderRadius: 3 }}>
-          <label className="field-label" style={{ display: 'block', marginBottom: 12, fontSize: 13 }}>📦 Objets & Armes saisis</label>
-
-          <div style={{ marginBottom: 14 }}>
-            <label className="field-label" style={{ fontSize: 11, marginBottom: 6 }}>Objets saisis (écriture libre)</label>
-            {saisiesObjets.map((obj, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-                <input
-                  type="text" className="field-input" style={{ flex: 1 }}
-                  placeholder="Ex: Sac de billets, documents falsifiés..."
-                  value={obj}
-                  onChange={e => setSaisiesObjets(s => s.map((x, j) => j === i ? e.target.value : x))}
-                />
-                <button className="btn-red" style={{ padding: '6px 10px', fontSize: 12 }}
-                  onClick={() => setSaisiesObjets(s => s.filter((_, j) => j !== i))}>✕</button>
-              </div>
-            ))}
-            <button className="btn-gold" style={{ fontSize: 11, padding: '5px 12px' }}
-              onClick={() => setSaisiesObjets(s => [...s, ''])}>+ Ajouter un objet</button>
-          </div>
-
-          <div>
-            <label className="field-label" style={{ fontSize: 11, marginBottom: 6 }}>Armes saisies</label>
-            {saisiesArmes.map((arme, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'center' }}>
-                <input
-                  type="text" className="field-input" style={{ flex: 2 }}
-                  placeholder="Nom de l'arme"
-                  value={arme.nom || ''}
-                  onChange={e => setSaisiesArmes(s => s.map((x, j) => j === i ? { ...x, nom: e.target.value } : x))}
-                />
-                <input
-                  type="text" className="field-input" style={{ flex: 2, fontFamily: "'Special Elite', cursive", letterSpacing: 1 }}
-                  placeholder="N° série : 0000000000-0000"
-                  value={arme.serie || ''}
-                  onChange={e => setSaisiesArmes(s => s.map((x, j) => j === i ? { ...x, serie: e.target.value } : x))}
-                />
-                <button className="btn-red" style={{ padding: '6px 10px', fontSize: 12 }}
-                  onClick={() => setSaisiesArmes(s => s.filter((_, j) => j !== i))}>✕</button>
-              </div>
-            ))}
-            <button className="btn-gold" style={{ fontSize: 11, padding: '5px 12px' }}
-              onClick={() => setSaisiesArmes(s => [...s, { nom: '', serie: '' }])}>+ Ajouter une arme</button>
           </div>
         </div>
 

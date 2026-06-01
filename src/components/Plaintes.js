@@ -51,8 +51,9 @@ function nomCompletMis(m) {
 // ── Modal dépôt de plainte (création ET modification complète) ─
 function PlainteModal({ plainte, citoyens, agents, groupes, onClose, onSaved, showNotif }) {
   const now = new Date();
+  const rpNow = '1905-' + String(now.getMonth() + 1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
   const [form, setForm] = useState({
-    date:   plainte?.date   || now.toISOString().split('T')[0],
+    date:   plainte?.date   || rpNow,
     heure:  plainte?.heure  || now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0'),
     agent:  plainte?.agent  || '',
     faits:            plainte?.faits            || '',
@@ -271,9 +272,9 @@ function VerbalisationModal({ plainte, misIndex, agents, onClose, onDone, showNo
   const [selected, setSelected] = useState([]);
   const [agent, setAgent] = useState('');
   const [note, setNote] = useState('Verbalisation suite à dépôt de plainte');
-  const [saisiesObjets, setSaisiesObjets] = useState([]);
-  const [saisiesArmes, setSaisiesArmes] = useState([]);
-  const total = selected.reduce((s, x) => s + x.amende, 0);
+  const [totalOverride, setTotalOverride] = useState('');
+  const totalAuto = selected.reduce((s, x) => s + x.amende, 0);
+  const total = totalOverride !== '' ? parseInt(totalOverride) || 0 : totalAuto;
   const hasSisika = selected.some(x => x.sisika);
   function toggle(art) { setSelected(p => p.find(x => x.num === art.num) ? p.filter(x => x.num !== art.num) : [...p, art]); }
 
@@ -282,8 +283,9 @@ function VerbalisationModal({ plainte, misIndex, agents, onClose, onDone, showNo
     const nomC = nomCompletMis(mis);
     const casierKey = nomC.toLowerCase().replace(/ /g, '_');
     const now = new Date();
+    const rpDate = '1905-' + String(now.getMonth() + 1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
     const record = {
-      date: now.toISOString().split('T')[0],
+      date: rpDate,
       heure: now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0'),
       agent: agent || 'Non précisé', nom: mis.nom, prenom: mis.prenom || '',
       idNum: mis.carteId || casierKey, nomComplet: nomC, sexe: '', age: 0,
@@ -310,20 +312,6 @@ function VerbalisationModal({ plainte, misIndex, agents, onClose, onDone, showNo
         statut: 'verbalise', misNom: mis.nom, misPrenom: mis.prenom || '',
         updatedAt: serverTimestamp(),
       });
-      // Enregistrer les saisies
-      const saisieBase = {
-        source: 'plainte',
-        date: now.toISOString().split('T')[0],
-        heure: now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0'),
-        agent: agent || '',
-        nomComplet: nomC, createdAt: serverTimestamp(),
-      };
-      for (const obj of saisiesObjets.filter(o => o.trim())) {
-        await addDoc(collection(db, 'saisies'), { ...saisieBase, type: 'objet', description: obj });
-      }
-      for (const arme of saisiesArmes.filter(a => a.nom || a.serie)) {
-        await addDoc(collection(db, 'saisies'), { ...saisieBase, type: 'arme', description: arme.nom, serie: arme.serie || '' });
-      }
       showNotif('Verbalisation créée et casier mis à jour !');
       onDone();
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
@@ -367,42 +355,24 @@ function VerbalisationModal({ plainte, misIndex, agents, onClose, onDone, showNo
           </div>
         </div>
         <div className="total-box" style={{ marginBottom: 16 }}>
-          <div><div className="total-label">Amende totale</div>{hasSisika && <span className="sisika-badge">⚠ SÉJOUR À SISIKA</span>}</div>
-          <div className="total-amount">{total} $</div>
-        </div>
-        {/* Saisies */}
-        <div style={{ marginBottom: 16, padding: '16px', background: 'rgba(201,168,76,.06)', border: '1px solid rgba(201,168,76,.25)', borderRadius: 3 }}>
-          <label className="field-label" style={{ display: 'block', marginBottom: 12, fontSize: 13 }}>📦 Objets & Armes saisis</label>
-          <div style={{ marginBottom: 14 }}>
-            <label className="field-label" style={{ fontSize: 11, marginBottom: 6 }}>Objets saisis</label>
-            {saisiesObjets.map((obj, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-                <input type="text" className="field-input" style={{ flex: 1 }} placeholder="Ex: Sac de billets, documents falsifiés..." value={obj}
-                  onChange={e => setSaisiesObjets(s => s.map((x, j) => j === i ? e.target.value : x))} />
-                <button className="btn-red" style={{ padding: '6px 10px', fontSize: 12 }}
-                  onClick={() => setSaisiesObjets(s => s.filter((_, j) => j !== i))}>✕</button>
-              </div>
-            ))}
-            <button className="btn-gold" style={{ fontSize: 11, padding: '5px 12px' }}
-              onClick={() => setSaisiesObjets(s => [...s, ''])}>+ Ajouter un objet</button>
-          </div>
           <div>
-            <label className="field-label" style={{ fontSize: 11, marginBottom: 6 }}>Armes saisies</label>
-            {saisiesArmes.map((arme, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'center' }}>
-                <input type="text" className="field-input" style={{ flex: 2 }} placeholder="Nom de l'arme" value={arme.nom || ''}
-                  onChange={e => setSaisiesArmes(s => s.map((x, j) => j === i ? { ...x, nom: e.target.value } : x))} />
-                <input type="text" className="field-input" style={{ flex: 2, fontFamily: "'Special Elite', cursive", letterSpacing: 1 }} placeholder="N° série : 0000000000-0000" value={arme.serie || ''}
-                  onChange={e => setSaisiesArmes(s => s.map((x, j) => j === i ? { ...x, serie: e.target.value } : x))} />
-                <button className="btn-red" style={{ padding: '6px 10px', fontSize: 12 }}
-                  onClick={() => setSaisiesArmes(s => s.filter((_, j) => j !== i))}>✕</button>
-              </div>
-            ))}
-            <button className="btn-gold" style={{ fontSize: 11, padding: '5px 12px' }}
-              onClick={() => setSaisiesArmes(s => [...s, { nom: '', serie: '' }])}>+ Ajouter une arme</button>
+            <div className="total-label">Amende totale</div>
+            {hasSisika && <span className="sisika-badge">⚠ SÉJOUR À SISIKA</span>}
+            <div style={{ fontSize: 10, color: 'rgba(201,168,76,.5)', fontFamily: "'Special Elite', cursive", marginTop: 4 }}>
+              Calculé : {totalAuto} $
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="number" min="0"
+              style={{ width: 90, textAlign: 'right', fontSize: 22, fontFamily: "'Special Elite', cursive", color: 'var(--gold)', background: 'rgba(0,0,0,.3)', border: '1px solid rgba(201,168,76,.4)', borderRadius: 3, padding: '4px 8px' }}
+              placeholder={totalAuto}
+              value={totalOverride}
+              onChange={e => setTotalOverride(e.target.value)}
+            />
+            <span className="total-amount" style={{ fontSize: 22 }}>$</span>
           </div>
         </div>
-
         <div className="actions-row">
           <button className="btn-submit" onClick={submit}>⚖ Créer la verbalisation</button>
           <button className="btn-red" onClick={onClose}>Annuler</button>
