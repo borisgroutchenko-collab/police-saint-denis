@@ -103,6 +103,26 @@ export default function App() {
 
   if (!loggedIn) return <Login onLogin={() => setLoggedIn(true)} />;
 
+  async function exportBackup() {
+    showNotif('Export en cours...');
+    try {
+      const COLS = ['citoyens','casier','verbalisations','groupes','plaintes','saisies','convocations','notes','effectif'];
+      const backup = { exportDate: new Date().toISOString(), collections: {} };
+      for (const col of COLS) {
+        try {
+          const snap = await getDocs(collection(db, col));
+          backup.collections[col] = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+        } catch (_) { backup.collections[col] = []; }
+      }
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'backup-' + new Date().toISOString().split('T')[0] + '.json';
+      a.click(); URL.revokeObjectURL(url);
+      showNotif('Backup exporté !');
+    } catch (e) { showNotif('Erreur : ' + e.message, true); }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       {/* Notification */}
@@ -128,7 +148,7 @@ export default function App() {
           <button
             onClick={exportBackup}
             style={{ marginRight: 6, background: 'rgba(201,168,76,.15)', border: '1px solid rgba(201,168,76,.4)', borderRadius: 2, padding: '4px 12px', fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'var(--gold)', cursor: 'pointer', letterSpacing: 1 }}
-            title="Exporter une sauvegarde JSON de la base de données"
+            title="Exporter une sauvegarde JSON"
           >💾 Backup</button>
           <button className="logout-btn" onClick={() => setLoggedIn(false)}>Déconnexion</button>
         </div>
