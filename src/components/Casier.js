@@ -309,6 +309,16 @@ function DossierDetail({ dossier, infs, enqs, plaintesSignalees, onBack, onReloa
       {/* Main card */}
       <div className="card" style={{ borderColor: 'var(--gold)' }}>
         {d.mostWanted && <div className="most-wanted-banner">⭐ MOST WANTED — RECHERCHÉ ACTIVEMENT ⭐</div>}
+      {d.statutCitoyen === 'decede' && (
+        <div style={{ background: 'rgba(100,100,100,.2)', border: '1px solid rgba(136,136,136,.4)', borderRadius: 3, padding: '10px 16px', marginBottom: 16, fontFamily: "'Special Elite', cursive", fontSize: 14, color: '#aaa', letterSpacing: 1 }}>
+          ⚰ Ce citoyen est décédé — Dossier archivé
+        </div>
+      )}
+      {d.statutCitoyen === 'disparu' && (
+        <div style={{ background: 'rgba(255,204,68,.08)', border: '1px solid rgba(255,204,68,.35)', borderRadius: 3, padding: '10px 16px', marginBottom: 16, fontFamily: "'Special Elite', cursive", fontSize: 14, color: '#ffcc44', letterSpacing: 1 }}>
+          ❓ Ce citoyen est porté disparu
+        </div>
+      )}
         <div className="card-title">📁 Dossier — {d.nomComplet}</div>
 
         <div className="form-grid three">
@@ -462,12 +472,26 @@ export default function Casier({ showNotif, initialDossierId, onDossierOpened })
   const [currentDossier, setCurrentDossier] = useState(null);
   const [currentInfs, setCurrentInfs] = useState([]);
   const [currentEnqs, setCurrentEnqs] = useState([]);
+  const [filtreStatut, setFiltreStatut] = useState(''); // '' | 'actif' | 'decede' | 'disparu'
 
   const loadCasier = useCallback(async () => {
     setLoading(true);
     try {
-      const snap = await getDocs(query(collection(db, 'casier'), orderBy('nomComplet')));
-      setDossiers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const [snap, citSnap] = await Promise.all([
+        getDocs(query(collection(db, 'casier'), orderBy('nomComplet'))),
+        getDocs(collection(db, 'citoyens')),
+      ]);
+      // Construire une map nomComplet → statut citoyen
+      const citoyensMap = {};
+      citSnap.docs.forEach(d => {
+        const data = d.data();
+        if (data.nomComplet) citoyensMap[data.nomComplet.toLowerCase()] = data.statut || 'actif';
+      });
+      setDossiers(snap.docs.map(d => {
+        const data = d.data();
+        const statutCitoyen = citoyensMap[(data.nomComplet || '').toLowerCase()] || 'actif';
+        return { id: d.id, ...data, statutCitoyen };
+      }));
     } catch (e) {
       showNotif('Erreur : ' + e.message, true);
     }
@@ -491,6 +515,9 @@ export default function Casier({ showNotif, initialDossierId, onDossierOpened })
     try {
       const dSnap = await getDoc(doc(db, 'casier', id));
       const dData = { id, ...dSnap.data() };
+      // Récupérer le statut depuis la liste déjà chargée si possible
+      const existing = dossiers.find(d => d.id === id);
+      if (existing?.statutCitoyen) dData.statutCitoyen = existing.statutCitoyen;
       const infSnap = await getDocs(query(collection(db, 'casier', id, 'infractions'), orderBy('createdAt', 'desc')));
       const enqSnap = await getDocs(query(collection(db, 'casier', id, 'enquetes'), orderBy('createdAt', 'desc')));
       const plSnap  = await getDocs(collection(db, 'casier', id, 'plaintesSignalees'));
@@ -546,10 +573,18 @@ export default function Casier({ showNotif, initialDossierId, onDossierOpened })
     if (currentDossier) await openDossier(currentDossier.id);
   }
 
-  const filtered = dossiers.filter(d =>
-    (d.nomComplet || '').toLowerCase().includes(search.toLowerCase()) ||
-    (d.idNum || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = dossiers.filter(d => {
+    const q = search.toLowerCase();
+    const matchSearch =
+      (d.nomComplet || '').toLowerCase().includes(q) ||
+      (d.idNum || '').toLowerCase().includes(q);
+    const matchStatut = !filtreStatut || (d.statutCitoyen || 'actif') === filtreStatut;
+    return matchSearch && matchStatut;
+  });
+
+  const nbActifs  = dossiers.filter(d => (d.statutCitoyen || 'actif') === 'actif').length;
+  const nbDecedes = dossiers.filter(d => d.statutCitoyen === 'decede').length;
+  const nbDisparus= dossiers.filter(d => d.statutCitoyen === 'disparu').length;
 
   if (view === 'detail' && currentDossier) {
     return <DossierDetail dossier={currentDossier} infs={currentInfs} enqs={currentEnqs} plaintesSignalees={currentPlaintes} onBack={() => { setView('list'); loadCasier(); }} onReload={reloadDossier} showNotif={showNotif} />;
@@ -558,28 +593,60 @@ export default function Casier({ showNotif, initialDossierId, onDossierOpened })
   return (
     <div className="card" style={{ paddingBottom: 16 }}>
       <div className="card-title">🗄 Casier Judiciaire</div>
+
       <div className="search-bar">
         <input type="text" className="field-input" style={{ flex: 1 }} placeholder="Rechercher par nom, prénom ou numéro d'identité..." value={search} onChange={e => setSearch(e.target.value)} />
         <button className="btn-gold" onClick={loadCasier}>🔄 Actualiser</button>
       </div>
+
+      {/* Filtres statut citoyen */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <button onClick={() => setFiltreStatut('')} className={!filtreStatut ? 'btn-submit' : 'btn-gold'} style={{ fontSize: 12, padding: '6px 14px' }}>
+          Tous ({dossiers.length})
+        </button>
+        <button onClick={() => setFiltreStatut(filtreStatut === 'actif' ? '' : 'actif')}
+          style={{ fontSize: 12, padding: '6px 14px', borderRadius: 2, cursor: 'pointer', border: '1px solid #90ee90', background: filtreStatut === 'actif' ? 'rgba(144,238,144,.15)' : 'transparent', color: '#90ee90', fontFamily: "'Special Elite', cursive", letterSpacing: 1 }}>
+          ✓ Actifs ({nbActifs})
+        </button>
+        <button onClick={() => setFiltreStatut(filtreStatut === 'decede' ? '' : 'decede')}
+          style={{ fontSize: 12, padding: '6px 14px', borderRadius: 2, cursor: 'pointer', border: '1px solid #888', background: filtreStatut === 'decede' ? 'rgba(136,136,136,.15)' : 'transparent', color: '#aaa', fontFamily: "'Special Elite', cursive", letterSpacing: 1 }}>
+          ⚰ Décédés ({nbDecedes})
+        </button>
+        <button onClick={() => setFiltreStatut(filtreStatut === 'disparu' ? '' : 'disparu')}
+          style={{ fontSize: 12, padding: '6px 14px', borderRadius: 2, cursor: 'pointer', border: '1px solid #ffcc44', background: filtreStatut === 'disparu' ? 'rgba(255,204,68,.15)' : 'transparent', color: '#ffcc44', fontFamily: "'Special Elite', cursive", letterSpacing: 1 }}>
+          ❓ Disparus ({nbDisparus})
+        </button>
+      </div>
+
       {loading ? (
         <div><span className="spinner" /> Chargement...</div>
       ) : (
         <div className="dossier-grid">
           {filtered.length === 0 && <div style={{ color: 'rgba(244,237,216,.4)', fontStyle: 'italic', fontSize: 14 }}>Aucun dossier trouvé.</div>}
-          {filtered.map(d => (
-            <div key={d.id} className={`dossier-card${d.mostWanted ? ' most-wanted-card' : ''}`} onClick={() => openDossier(d.id)}>
-              <div className="dossier-id">📋 ID : {d.idNum}</div>
-              <div className="dossier-name">{d.nomComplet}</div>
-              <div className="dossier-meta">{d.sexe || ''}{d.age ? ' • ' + d.age + ' ans' : ''}</div>
-              <div className="dossier-stats">
-                <span className="stat-badge">⚖ {d.nbInfractions || 0} infraction(s)</span>
-                <span className="stat-badge">{d.totalAmende || 0} $</span>
-                {d.sisika && <span className="stat-badge" style={{ borderColor: 'var(--red)', color: '#ff6b6b' }}>🔒 Sisika</span>}
-                {d.mostWanted && <span className="badge-mw">🎯 MOST WANTED</span>}
+          {filtered.map(d => {
+            const statut = d.statutCitoyen || 'actif';
+            return (
+              <div key={d.id}
+                className={`dossier-card${d.mostWanted ? ' most-wanted-card' : ''}`}
+                onClick={() => openDossier(d.id)}
+                style={statut === 'decede' ? { opacity: 0.65, borderColor: 'rgba(136,136,136,.3)' } : statut === 'disparu' ? { borderColor: 'rgba(255,204,68,.3)' } : {}}
+              >
+                <div className="dossier-id">📋 ID : {d.idNum}</div>
+                <div className="dossier-name">
+                  {d.nomComplet}
+                  {statut === 'decede'  && <span style={{ marginLeft: 8, fontSize: 11, color: '#888', fontFamily: "'Special Elite', cursive" }}>⚰ Décédé</span>}
+                  {statut === 'disparu' && <span style={{ marginLeft: 8, fontSize: 11, color: '#ffcc44', fontFamily: "'Special Elite', cursive" }}>❓ Disparu</span>}
+                </div>
+                <div className="dossier-meta">{d.sexe || ''}{d.age ? ' • ' + d.age + ' ans' : ''}</div>
+                <div className="dossier-stats">
+                  <span className="stat-badge">⚖ {d.nbInfractions || 0} infraction(s)</span>
+                  <span className="stat-badge">{d.totalAmende || 0} $</span>
+                  {d.sisika && <span className="stat-badge" style={{ borderColor: 'var(--red)', color: '#ff6b6b' }}>🔒 Sisika</span>}
+                  {d.mostWanted && <span className="badge-mw">🎯 MOST WANTED</span>}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
