@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './index.css';
-import { APP_PASSWORD } from './firebase';
+import { APP_PASSWORD, db } from './firebase';
+import { collection, getDocs } from 'firebase/firestore';
 import { useNotif } from './hooks/useNotif';
 import Verbalization from './components/Verbalization';
 import Casier from './components/Casier';
@@ -124,6 +125,11 @@ export default function App() {
               {s.label}
             </button>
           ))}
+          <button
+            onClick={exportBackup}
+            style={{ marginRight: 6, background: 'rgba(201,168,76,.15)', border: '1px solid rgba(201,168,76,.4)', borderRadius: 2, padding: '4px 12px', fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'var(--gold)', cursor: 'pointer', letterSpacing: 1 }}
+            title="Exporter une sauvegarde JSON de la base de données"
+          >💾 Backup</button>
           <button className="logout-btn" onClick={() => setLoggedIn(false)}>Déconnexion</button>
         </div>
       </div>
