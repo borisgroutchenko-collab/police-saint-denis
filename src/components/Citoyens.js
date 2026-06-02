@@ -20,6 +20,7 @@ function CitoyenModal({ citoyen, onClose, onSaved, showNotif }) {
     telegram: citoyen?.telegram || '',
     portArme: citoyen?.portArme || false,
     statut:   citoyen?.statut   || 'actif',
+    notes:    citoyen?.notes    || '',
   });
   const [armes, setArmes] = useState(
     citoyen?.armes
@@ -126,6 +127,18 @@ function CitoyenModal({ citoyen, onClose, onSaved, showNotif }) {
               🔫 Permis de port d'arme longue
             </label>
           </div>
+        </div>
+
+        {/* Notes libres */}
+        <div style={{ marginBottom: 16 }}>
+          <label className="field-label">Notes & Observations</label>
+          <textarea
+            className="field-textarea"
+            style={{ minHeight: 90 }}
+            placeholder="Notes libres sur ce citoyen (comportement, informations utiles, antécédents connus...)"
+            value={form.notes}
+            onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+          />
         </div>
 
         {/* Armes */}
@@ -283,6 +296,14 @@ function CitoyenDetail({ citoyen, casier, groupes, onBack, onEdit, onDelete, onG
                   : <span className="badge-unpaid">❌ AMENDE NON PAYÉE</span>}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Notes */}
+        {citoyen.notes && (
+          <div style={{ marginBottom: 20, background: 'rgba(201,168,76,.06)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 3, padding: '14px 16px' }}>
+            <span className="field-label" style={{ display: 'block', marginBottom: 8 }}>📝 Notes & Observations</span>
+            <div style={{ fontSize: 13, color: 'rgba(244,237,216,.85)', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontStyle: 'italic' }}>{citoyen.notes}</div>
           </div>
         )}
 
