@@ -17,6 +17,29 @@ const STATUTS = [
 // Synchronise les signalements de plainte dans les casiers des mis en cause.
 // - Pour chaque mis en cause identifié : crée/met à jour casier/{key}/plaintesSingalees/{plainteId}
 // - Si statut = 'classee' : supprime le signalement (blanchi ou clôturé)
+// Supprime le casier si vide (0 infractions, 0 enquêtes, 0 plaintes signalées)
+async function cleanupCasierSiVide(casierKey) {
+  try {
+    const casRef = doc(db, 'casier', casierKey);
+    const casSnap = await getDoc(casRef);
+    if (!casSnap.exists()) return;
+    const data = casSnap.data();
+    // Casier avec des infractions ou des amendes => on garde
+    if ((data.nbInfractions || 0) > 0 || (data.totalAmende || 0) > 0) return;
+    // Vérifier s'il reste des enquêtes
+    const enqSnap = await getDocs(collection(db, 'casier', casierKey, 'enquetes'));
+    if (!enqSnap.empty) return;
+    // Vérifier s'il reste des verbalisations
+    const verbSnap = await getDocs(collection(db, 'casier', casierKey, 'verbalisations'));
+    if (!verbSnap.empty) return;
+    // Vérifier s'il reste des plaintes signalées
+    const plainteSnap = await getDocs(collection(db, 'casier', casierKey, 'plaintesSignalees'));
+    if (!plainteSnap.empty) return;
+    // Tout est vide → supprimer le casier
+    await deleteDoc(casRef);
+  } catch (_) {}
+}
+
 async function syncPlainteCasiers(plainteId, misEnCause, plaintifsStr, date, faits, statut, casiersLies, anciensMisEnCause) {
   // Calculer les mis en cause retirés (présents avant, absents maintenant)
   const anciensNoms = (anciensMisEnCause || [])
@@ -28,12 +51,11 @@ async function syncPlainteCasiers(plainteId, misEnCause, plaintifsStr, date, fai
       .map(m => ((m.prenom ? m.prenom + ' ' : '') + m.nom).toLowerCase().replace(/ /g, '_'))
   );
 
-  // Supprimer le signalement des mis en cause retirés
+  // Supprimer le signalement des mis en cause retirés + nettoyer leur casier si vide
   for (const ancienKey of anciensNoms) {
     if (!nouveauxNoms.has(ancienKey)) {
-      try {
-        await deleteDoc(doc(db, 'casier', ancienKey, 'plaintesSignalees', plainteId));
-      } catch (_) {}
+      try { await deleteDoc(doc(db, 'casier', ancienKey, 'plaintesSignalees', plainteId)); } catch (_) {}
+      await cleanupCasierSiVide(ancienKey);
     }
   }
 
@@ -44,7 +66,9 @@ async function syncPlainteCasiers(plainteId, misEnCause, plaintifsStr, date, fai
     const casierKey = nomComplet.toLowerCase().replace(/ /g, '_');
     const sigRef = doc(db, 'casier', casierKey, 'plaintesSignalees', plainteId);
     if (statut === 'classee') {
+      // Plainte classée → retire le signalement puis nettoie si casier vide
       try { await deleteDoc(sigRef); } catch (_) {}
+      await cleanupCasierSiVide(casierKey);
     } else {
       const casRef = doc(db, 'casier', casierKey);
       const casSnap = await getDoc(casRef);
