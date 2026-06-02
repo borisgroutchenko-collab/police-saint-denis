@@ -75,6 +75,20 @@ export default function Verbalization({ showNotif }) {
     setSaisiesArmes([]);
   }
 
+
+  // Met à jour le statut de l'arme dans la fiche citoyen si elle existe
+  async function markArmeSaisie(nomComplet, serie) {
+    if (!serie) return;
+    try {
+      const citSnap = await getDocs(query(collection(db, 'citoyens'), where('nomComplet', '==', nomComplet)));
+      if (citSnap.empty) return;
+      const citDoc = citSnap.docs[0];
+      const armes = citDoc.data().armes || [];
+      const updated = armes.map(a => a.serie === serie ? { ...a, statutArme: 'saisie' } : a);
+      await updateDoc(doc(db, 'citoyens', citDoc.id), { armes: updated });
+    } catch (_) {}
+  }
+
   async function submit() {
     if (!citoyenChoisi) {
       showNotif('Sélectionnez un citoyen enregistré', true); return;
@@ -120,6 +134,7 @@ export default function Verbalization({ showNotif }) {
       }
       for (const arme of saisiesArmes.filter(a => a.nom || a.serie)) {
         await addDoc(collection(db, 'saisies'), { ...saisieBase, type: 'arme', description: arme.nom, serie: arme.serie || '' });
+        if (arme.serie) await markArmeSaisie(nomComplet, arme.serie);
       }
       showNotif('Verbalisation enregistrée !');
       resetForm();

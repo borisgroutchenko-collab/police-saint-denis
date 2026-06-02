@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../firebase';
 import {
   collection, getDocs, addDoc, deleteDoc, updateDoc,
-  doc, orderBy, query, serverTimestamp, getDoc, setDoc, increment, writeBatch,
+  doc, orderBy, query, serverTimestamp, where, getDoc, setDoc, increment, writeBatch,
 } from 'firebase/firestore';
 import { ALL_INFRACTIONS } from '../data/penalCode';
 import { exportPlaintePDF } from '../utils/exportPlaintePDF';
@@ -322,6 +322,7 @@ function VerbalisationModal({ plainte, misIndex, agents, onClose, onDone, showNo
       }
       for (const arme of saisiesArmes.filter(a => a.nom || a.serie)) {
         await addDoc(collection(db, 'saisies'), { ...saisieBase, type: 'arme', description: arme.nom, serie: arme.serie || '' });
+        if (arme.serie) await markArmeSaisie(nomC, arme.serie);
       }
       showNotif('Verbalisation créée et casier mis à jour !');
       onDone();

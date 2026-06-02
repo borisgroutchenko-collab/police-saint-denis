@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../firebase';
 import {
   collection, getDocs, addDoc, deleteDoc, updateDoc,
-  doc, orderBy, query, serverTimestamp, getDoc,
+  doc, orderBy, query, serverTimestamp, getDoc, where,
 } from 'firebase/firestore';
 
 // ── Modal ajout / édition ──────────────────────────────────────
@@ -121,8 +121,27 @@ function CitoyenModal({ citoyen, onClose, onSaved, showNotif }) {
 }
 
 // ── Fiche détail citoyen ───────────────────────────────────────
-function CitoyenDetail({ citoyen, casier, groupes, onBack, onEdit, onDelete, onGoToCasier }) {
+function CitoyenDetail({ citoyen, casier, groupes, onBack, onEdit, onDelete, onGoToCasier, showNotif }) {
   const hasCasier = !!casier;
+  const [saisiesCitoyen, setSaisiesCitoyen] = React.useState([]);
+
+  React.useEffect(() => {
+    if (!citoyen?.nomComplet) return;
+    getDocs(query(collection(db, 'saisies'), where('nomComplet', '==', citoyen.nomComplet)))
+      .then(snap => setSaisiesCitoyen(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+      .catch(() => {});
+  }, [citoyen?.nomComplet]);
+
+  async function toggleStatutArme(i, newStatut) {
+    const newArmes = (citoyen.armes || []).map((a, j) =>
+      j === i ? { ...a, statutArme: newStatut } : a
+    );
+    try {
+      await updateDoc(doc(db, 'citoyens', citoyen.id), { armes: newArmes });
+      citoyen.armes = newArmes;
+      showNotif('Statut de l'arme mis à jour');
+    } catch (e) { showNotif('Erreur : ' + e.message, true); }
+  }
 
   return (
     <div>
