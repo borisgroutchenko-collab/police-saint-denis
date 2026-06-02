@@ -286,6 +286,58 @@ function CitoyenDetail({ citoyen, casier, groupes, onBack, onEdit, onDelete, onG
           </div>
         )}
 
+        {/* Armes enregistrées */}
+        {citoyen.armes && citoyen.armes.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <span className="field-label" style={{ display: 'block', marginBottom: 8 }}>🔫 Armes enregistrées</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {citoyen.armes.map((arme, i) => {
+                const saisieAuto = saisiesCitoyen.find(s => s.type === 'arme' && s.serie && arme.serie && s.serie === arme.serie);
+                const displayStatut = saisieAuto ? 'saisie' : (arme.statutArme || 'normal');
+                const bordeColor = displayStatut === 'volee' ? 'rgba(255,100,0,.5)' : displayStatut === 'saisie' ? 'rgba(255,204,68,.5)' : 'rgba(201,168,76,.2)';
+                const bgColor    = displayStatut === 'volee' ? 'rgba(255,100,0,.08)' : displayStatut === 'saisie' ? 'rgba(255,204,68,.08)' : 'rgba(201,168,76,.07)';
+                return (
+                  <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center', background: bgColor, border: '1px solid ' + bordeColor, borderRadius: 3, padding: '8px 14px' }}>
+                    <span style={{ color: 'var(--paper)', fontSize: 14, flex: 1, fontFamily: "'IM Fell English', serif" }}>{arme.nom || '—'}</span>
+                    {arme.serie && (
+                      <span style={{ fontFamily: "'Special Elite', cursive", color: 'var(--gold)', fontSize: 13, letterSpacing: 1 }}>#{arme.serie}</span>
+                    )}
+                    {saisieAuto
+                      ? <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: '#ffcc44', letterSpacing: 1 }}>📦 Saisie</span>
+                      : <select
+                          value={arme.statutArme || 'normal'}
+                          onChange={e => toggleStatutArme(i, e.target.value)}
+                          style={{ fontSize: 11, background: 'rgba(0,0,0,.4)', border: '1px solid rgba(201,168,76,.3)', borderRadius: 2, padding: '3px 6px', fontFamily: "'Special Elite', cursive", cursor: 'pointer',
+                            color: (arme.statutArme || 'normal') === 'volee' ? '#ff9966' : (arme.statutArme || 'normal') === 'saisie' ? '#ffcc44' : 'rgba(244,237,216,.7)' }}
+                        >
+                          <option value="normal">✓ Normal</option>
+                          <option value="volee">🚨 Volée</option>
+                          <option value="saisie">📦 Saisie</option>
+                        </select>
+                    }
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Saisies enregistrées */}
+        {saisiesCitoyen.length > 0 && (
+          <div style={{ marginBottom: 20, background: 'rgba(255,204,68,.06)', border: '1px solid rgba(255,204,68,.2)', borderRadius: 3, padding: '14px 16px' }}>
+            <span className="field-label" style={{ display: 'block', marginBottom: 10 }}>📦 Saisies enregistrées ({saisiesCitoyen.length})</span>
+            {saisiesCitoyen.map((s, i) => (
+              <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '5px 0', borderBottom: i < saisiesCitoyen.length - 1 ? '1px solid rgba(255,204,68,.1)' : 'none' }}>
+                <span style={{ fontSize: 12 }}>{s.type === 'arme' ? '🔫' : '📦'}</span>
+                <span style={{ flex: 1, fontSize: 13, color: 'rgba(244,237,216,.8)' }}>{s.description || '—'}</span>
+                {s.serie && <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'var(--gold)', letterSpacing: 1 }}>#{s.serie}</span>}
+                <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, color: 'rgba(255,204,68,.6)' }}>{s.source === 'plainte' ? '📝 Plainte' : '⚖ Verbal.'}</span>
+                {s.date && <span style={{ fontSize: 10, color: 'rgba(244,237,216,.4)' }}>{s.date}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Groupes d'appartenance */}
         {groupes && groupes.length > 0 && (
           <div style={{ marginBottom: 16, background: 'rgba(139,26,26,.1)', border: '1px solid rgba(139,26,26,.35)', borderRadius: 3, padding: '14px 16px' }}>
