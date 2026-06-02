@@ -17,23 +17,41 @@ const STATUTS = [
 // Synchronise les signalements de plainte dans les casiers des mis en cause.
 // - Pour chaque mis en cause identifié : crée/met à jour casier/{key}/plaintesSingalees/{plainteId}
 // - Si statut = 'classee' : supprime le signalement (blanchi ou clôturé)
-async function syncPlainteCasiers(plainteId, misEnCause, plaintifsStr, date, faits, statut, casiersLies) {
+async function syncPlainteCasiers(plainteId, misEnCause, plaintifsStr, date, faits, statut, casiersLies, anciensMisEnCause) {
+  // Calculer les mis en cause retirés (présents avant, absents maintenant)
+  const anciensNoms = (anciensMisEnCause || [])
+    .filter(m => !m.inconnu && m.nom)
+    .map(m => ((m.prenom ? m.prenom + ' ' : '') + m.nom).toLowerCase().replace(/ /g, '_'));
+  const nouveauxNoms = new Set(
+    misEnCause
+      .filter(m => !m.inconnu && m.nom)
+      .map(m => ((m.prenom ? m.prenom + ' ' : '') + m.nom).toLowerCase().replace(/ /g, '_'))
+  );
+
+  // Supprimer le signalement des mis en cause retirés
+  for (const ancienKey of anciensNoms) {
+    if (!nouveauxNoms.has(ancienKey)) {
+      try {
+        await deleteDoc(doc(db, 'casier', ancienKey, 'plaintesSignalees', plainteId));
+      } catch (_) {}
+    }
+  }
+
+  // Mettre à jour les mis en cause actuels
   for (const m of misEnCause) {
     if (m.inconnu || !m.nom) continue;
     const nomComplet = (m.prenom ? m.prenom + ' ' : '') + m.nom;
     const casierKey = nomComplet.toLowerCase().replace(/ /g, '_');
     const sigRef = doc(db, 'casier', casierKey, 'plaintesSignalees', plainteId);
     if (statut === 'classee') {
-      // Plainte classée → retire le signalement du casier dans tous les cas
-      try { await deleteDoc(sigRef); } catch (e) {}
+      try { await deleteDoc(sigRef); } catch (_) {}
     } else {
       const casRef = doc(db, 'casier', casierKey);
       const casSnap = await getDoc(casRef);
       if (!casSnap.exists()) {
         await setDoc(casRef, {
           idNum: m.carteId || casierKey, nom: m.nom, prenom: m.prenom || '',
-          nomComplet,
-          sexe: '', age: 0, createdAt: serverTimestamp(),
+          nomComplet, sexe: '', age: 0, createdAt: serverTimestamp(),
           totalAmende: 0, sisika: false, nbInfractions: 0,
         });
       }
@@ -112,7 +130,7 @@ function PlainteModal({ plainte, citoyens, agents, groupes, onClose, onSaved, sh
       }
       // Synchroniser dans les casiers des mis en cause
       const casiersLies = plainte?.casiersLies || [];
-      await syncPlainteCasiers(savedId, misEnCause, plaintifsStr, form.date, form.faits, form.statut, casiersLies);
+      await syncPlainteCasiers(savedId, misEnCause, plaintifsStr, form.date, form.faits, form.statut, casiersLies, plainte?.misEnCause || []);
       onSaved();
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
   }
