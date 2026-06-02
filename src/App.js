@@ -12,6 +12,7 @@ import Notes from './components/Notes';
 import Groupes from './components/Groupes';
 import Convocations from './components/Convocations';
 import Saisies from './components/Saisies';
+import RegistreArmes from './components/RegistreArmes';
 
 // ── Logo (même image base64 que le fichier original) ──────────
 // Remplacez cette URL par un lien vers votre logo si vous le souhaitez.
@@ -81,6 +82,7 @@ const SECTIONS = [
   { key: 'verbalization', label: '📋 Verbalisation' },
   { key: 'casier',        label: '🗄 Casier Judiciaire' },
   { key: 'saisies',       label: '📦 Saisies' },
+  { key: 'registreArmes', label: '🔫 Registre des Armes' },
   { key: 'convocations',  label: '📋 Convocations' },
   { key: 'notes',         label: '📌 Notes & Informations' },
   { key: 'penal',         label: '📖 Code Pénal' },
@@ -134,6 +136,7 @@ export default function App() {
         {section === 'groupes'       && <Groupes       showNotif={showNotif} />}
         {section === 'plaintes'      && <Plaintes      showNotif={showNotif} />}
         {section === 'saisies'       && <Saisies       showNotif={showNotif} />}
+        {section === 'registreArmes' && <RegistreArmes showNotif={showNotif} />}
         {section === 'convocations'  && <Convocations  showNotif={showNotif} />}
         {section === 'notes'         && <Notes         showNotif={showNotif} />}
         {section === 'penal'         && <CodePenal />}
