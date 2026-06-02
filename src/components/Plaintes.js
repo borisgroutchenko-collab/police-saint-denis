@@ -281,6 +281,18 @@ function VerbalisationModal({ plainte, misIndex, agents, onClose, onDone, showNo
   const hasSisika = selected.some(x => x.sisika);
   function toggle(art) { setSelected(p => p.find(x => x.num === art.num) ? p.filter(x => x.num !== art.num) : [...p, art]); }
 
+  async function markArmeSaisie(nomComplet, serie) {
+    if (!serie) return;
+    try {
+      const citSnap = await getDocs(query(collection(db, 'citoyens'), where('nomComplet', '==', nomComplet)));
+      if (citSnap.empty) return;
+      const citDoc = citSnap.docs[0];
+      const armes = citDoc.data().armes || [];
+      const updated = armes.map(a => a.serie === serie ? { ...a, statutArme: 'saisie' } : a);
+      await updateDoc(doc(db, 'citoyens', citDoc.id), { armes: updated });
+    } catch (_) {}
+  }
+
   async function submit() {
     if (!selected.length) { showNotif('Sélectionnez au moins une infraction', true); return; }
     const nomC = nomCompletMis(mis);
