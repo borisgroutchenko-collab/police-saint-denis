@@ -6,6 +6,8 @@ import {
 } from 'firebase/firestore';
 
 // ── Modal ajout / édition ──────────────────────────────────────
+const SERIAL_REGEX = /^\d{10}-\d{4}$/;
+
 function CitoyenModal({ citoyen, onClose, onSaved, showNotif }) {
   const [form, setForm] = useState({
     nom:      citoyen?.nom      || '',
@@ -19,12 +21,27 @@ function CitoyenModal({ citoyen, onClose, onSaved, showNotif }) {
     portArme: citoyen?.portArme || false,
     statut:   citoyen?.statut   || 'actif',
   });
+  const [armes, setArmes] = useState(
+    citoyen?.armes
+      ? citoyen.armes.map(a => ({ nom: a.nom || '', serie: a.serie || '', statutArme: a.statutArme || 'normal' }))
+      : []
+  );
+
+  function addArme() { setArmes(a => [...a, { nom: '', serie: '', statutArme: 'normal' }]); }
+  function removeArme(i) { setArmes(a => a.filter((_, j) => j !== i)); }
+  function updateArme(i, field, val) { setArmes(a => a.map((x, j) => j === i ? { ...x, [field]: val } : x)); }
 
   async function save() {
     if (!form.nom || !form.prenom) {
       showNotif('Nom et prénom obligatoires', true); return;
     }
-    const data = { ...form, age: parseInt(form.age) || 0, nomComplet: form.prenom + ' ' + form.nom };
+    for (const arme of armes) {
+      if (arme.serie && !SERIAL_REGEX.test(arme.serie)) {
+        showNotif('N° série invalide : ' + arme.serie + ' — format : XXXXXXXXXX-XXXX', true); return;
+      }
+    }
+    const armesFiltered = armes.filter(a => a.nom || a.serie);
+    const data = { ...form, age: parseInt(form.age) || 0, nomComplet: form.prenom + ' ' + form.nom, armes: armesFiltered };
     try {
       if (citoyen?.id) {
         await updateDoc(doc(db, 'citoyens', citoyen.id), data);
@@ -109,6 +126,38 @@ function CitoyenModal({ citoyen, onClose, onSaved, showNotif }) {
               🔫 Permis de port d'arme longue
             </label>
           </div>
+        </div>
+
+        {/* Armes */}
+        <div style={{ marginBottom: 16 }}>
+          <label className="field-label" style={{ marginBottom: 8, display: 'block' }}>🔫 Armes enregistrées</label>
+          {armes.map((arme, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+              <input
+                type="text" className="field-input" placeholder="Nom de l'arme"
+                value={arme.nom} onChange={e => updateArme(i, 'nom', e.target.value)}
+                style={{ flex: 2 }}
+              />
+              <input
+                type="text" className="field-input" placeholder="N° série : 0000000000-0000"
+                value={arme.serie} onChange={e => updateArme(i, 'serie', e.target.value)}
+                style={{ flex: 2, fontFamily: "'Special Elite', cursive", letterSpacing: 1 }}
+              />
+              <select
+                className="field-select"
+                value={arme.statutArme || 'normal'}
+                onChange={e => updateArme(i, 'statutArme', e.target.value)}
+                style={{ flex: 1, minWidth: 110, fontSize: 11,
+                  color: arme.statutArme === 'volee' ? '#ff9966' : arme.statutArme === 'saisie' ? '#ffcc44' : 'inherit' }}
+              >
+                <option value="normal">✓ Normal</option>
+                <option value="volee">🚨 Volée</option>
+                <option value="saisie">📦 Saisie</option>
+              </select>
+              <button className="btn-red" onClick={() => removeArme(i)} style={{ padding: '6px 10px', fontSize: 12 }}>✕</button>
+            </div>
+          ))}
+          <button className="btn-gold" onClick={addArme} style={{ fontSize: 12, padding: '6px 14px', marginTop: 4 }}>+ Ajouter une arme</button>
         </div>
 
         <div className="actions-row">
