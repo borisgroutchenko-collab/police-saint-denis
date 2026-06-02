@@ -139,7 +139,7 @@ function CitoyenDetail({ citoyen, casier, groupes, onBack, onEdit, onDelete, onG
     try {
       await updateDoc(doc(db, 'citoyens', citoyen.id), { armes: newArmes });
       citoyen.armes = newArmes;
-      showNotif('Statut de l'arme mis à jour');
+      showNotif('Statut arme mis a jour');
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
   }
 
