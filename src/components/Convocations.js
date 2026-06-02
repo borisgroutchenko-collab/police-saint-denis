@@ -27,6 +27,7 @@ function ConvocationModal({ convocation, citoyens, onClose, onSaved, showNotif }
     raison:  convocation?.raison  || '',
     notes:   convocation?.notes   || '',
     statut:  convocation?.statut  || 'non_envoyee',
+    lienPJ:  convocation?.lienPJ  || '',
   });
 
   const citoyenChoisi = citoyens.find(c => c.id === citoyenId) || null;
@@ -118,6 +119,28 @@ function ConvocationModal({ convocation, citoyens, onClose, onSaved, showNotif }
           <textarea className="field-textarea" style={{ minHeight: 60 }}
             placeholder="Observations, éléments à préparer..."
             value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+        </div>
+
+        {/* Lien pièce jointe */}
+        <div style={{ marginBottom: 16 }}>
+          <label className="field-label">🔗 Lien / Pièce jointe (URL)</label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="url" className="field-input" style={{ flex: 1 }}
+              placeholder="https://..."
+              value={form.lienPJ}
+              onChange={e => setForm(f => ({ ...f, lienPJ: e.target.value }))}
+            />
+            {form.lienPJ && (
+              <a href={form.lienPJ} target="_blank" rel="noreferrer"
+                style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'var(--gold)', whiteSpace: 'nowrap', padding: '6px 10px', border: '1px solid rgba(201,168,76,.4)', borderRadius: 2 }}>
+                👁 Voir
+              </a>
+            )}
+          </div>
+          <div style={{ fontSize: 10, color: 'rgba(244,237,216,.35)', fontStyle: 'italic', marginTop: 4 }}>
+            Coller un lien vers un document Google Drive, Imgur, etc.
+          </div>
         </div>
 
         <div className="actions-row">
@@ -310,6 +333,21 @@ export default function Convocations({ showNotif }) {
                         <div style={{ marginTop: 6 }}>
                           <span className="field-label" style={{ fontSize: 9 }}>Notes</span>
                           <div style={{ fontSize: 12, color: 'rgba(244,237,216,.55)', fontStyle: 'italic', lineHeight: 1.5, marginTop: 2 }}>{conv.notes}</div>
+                        </div>
+                      )}
+
+                      {/* Lien PJ */}
+                      {conv.lienPJ && (
+                        <div style={{ marginTop: 8 }}>
+                          <span className="field-label" style={{ fontSize: 9 }}>Pièce jointe</span>
+                          <div style={{ marginTop: 4 }}>
+                            <a
+                              href={conv.lienPJ} target="_blank" rel="noreferrer"
+                              style={{ fontFamily: "'Special Elite', cursive", fontSize: 12, color: 'var(--gold)', letterSpacing: 1, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', border: '1px solid rgba(201,168,76,.35)', borderRadius: 2, background: 'rgba(201,168,76,.07)' }}
+                            >
+                              🔗 Ouvrir le document
+                            </a>
+                          </div>
                         </div>
                       )}
                     </div>
