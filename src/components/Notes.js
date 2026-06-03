@@ -26,6 +26,7 @@ function NoteModal({ note, onClose, onSaved, showNotif }) {
   const [photos, setPhotos] = useState(note?.photos || []);
   const [photoUrl, setPhotoUrl] = useState('');
   const [lightbox, setLightbox] = useState(null);
+  const [agent, setAgent] = useState(note?.agent || '');
 
   function addPhoto() {
     if (!photoUrl.startsWith('http')) { showNotif('Le lien doit commencer par http...', true); return; }
@@ -36,7 +37,8 @@ function NoteModal({ note, onClose, onSaved, showNotif }) {
 
   async function save() {
     if (!titre.trim()) { showNotif('Le titre est obligatoire', true); return; }
-    const data = { titre: titre.trim(), contenu, couleur, photos, updatedAt: serverTimestamp() };
+    if (!agent.trim()) { showNotif('Le nom de l'agent est obligatoire', true); return; }
+    const data = { titre: titre.trim(), contenu, couleur, photos, agent: agent.trim(), updatedAt: serverTimestamp() };
     try {
       if (note?.id) {
         await updateDoc(doc(db, 'notes', note.id), data);

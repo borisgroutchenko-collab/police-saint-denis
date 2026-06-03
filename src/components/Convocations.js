@@ -28,12 +28,14 @@ function ConvocationModal({ convocation, citoyens, onClose, onSaved, showNotif }
     notes:   convocation?.notes   || '',
     statut:  convocation?.statut  || 'non_envoyee',
     lienPJ:  convocation?.lienPJ  || '',
+    agent:   convocation?.agent   || '',
   });
 
   const citoyenChoisi = citoyens.find(c => c.id === citoyenId) || null;
 
   async function save() {
     if (!citoyenId) { showNotif('Sélectionnez un citoyen', true); return; }
+    if (!form.agent.trim()) { showNotif('L'agent est obligatoire', true); return; }
     if (!form.raison.trim()) { showNotif('La raison est obligatoire', true); return; }
 
     const data = {
@@ -103,6 +105,14 @@ function ConvocationModal({ convocation, citoyens, onClose, onSaved, showNotif }
           <select className="field-select" value={form.statut} onChange={e => setForm(f => ({ ...f, statut: e.target.value }))}>
             {STATUTS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
           </select>
+        </div>
+
+        {/* Agent */}
+        <div style={{ marginBottom: 16 }}>
+          <label className="field-label">Agent convocateur *</label>
+          <input type="text" className="field-input"
+            placeholder="Nom et grade de l'agent..."
+            value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />
         </div>
 
         {/* Raison */}

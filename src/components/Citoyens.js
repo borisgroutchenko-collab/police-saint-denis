@@ -391,7 +391,8 @@ function CitoyenDetail({ citoyen, casier, groupes, onBack, onEdit, onDelete, onG
 export default function Citoyens({ showNotif, onGoToCasier }) {
   const [citoyens, setCitoyens] = useState([]);
   const [casiers, setCasiers] = useState({});
-  const [groupesMap, setGroupesMap] = useState({}); // { citoyenId: [{ nomGroupe, role, pseudo }] }
+  const [groupesMap, setGroupesMap] = useState({});
+  const [convocationsMap, setConvocationsMap] = useState({}); // { citoyenId: [{ nomGroupe, role, pseudo }] }
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [view, setView] = useState('list');
@@ -426,6 +427,18 @@ export default function Citoyens({ showNotif, onGoToCasier }) {
         });
       });
       setGroupesMap(gMap);
+
+      // Charger les convocations et indexer par nomComplet
+      const convSnap = await getDocs(collection(db, 'convocations'));
+      const convMap = {};
+      convSnap.forEach(d => {
+        const conv = d.data();
+        if (!conv.nomComplet) return;
+        const key = conv.nomComplet.toLowerCase();
+        if (!convMap[key]) convMap[key] = [];
+        convMap[key].push({ id: d.id, ...conv });
+      });
+      setConvocationsMap(convMap);
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
     setLoading(false);
   }, [showNotif]);
