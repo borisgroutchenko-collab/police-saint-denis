@@ -96,6 +96,7 @@ const SECTIONS = [
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [section, setSection] = useState('news');
+  const [newsTarget, setNewsTarget] = useState(null); // { type, id }
   const [casierTarget, setCasierTarget] = useState(null); // idNum à ouvrir dans Casier
   const { notif, showNotif } = useNotif();
 
@@ -105,6 +106,19 @@ export default function App() {
   }
 
   if (!loggedIn) return <Login onLogin={() => setLoggedIn(true)} />;
+
+  function handleNewsNavigate(type, id) {
+    const map = {
+      plainte:      'plaintes',
+      verbalisation:'verbalisations',
+      convocation:  'convocations',
+      note:         'notes',
+    };
+    const target = map[type];
+    if (!target) return;
+    setNewsTarget({ type, id });
+    setSection(target);
+  }
 
   async function exportBackup() {
     showNotif('Export en cours...');
@@ -166,15 +180,15 @@ export default function App() {
       <div className="main-content">
         {section === 'verbalization' && <Verbalization showNotif={showNotif} />}
         {section === 'casier'        && <Casier        showNotif={showNotif} initialDossierId={casierTarget} onDossierOpened={() => setCasierTarget(null)} />}
-        {section === 'news'          && <News          showNotif={showNotif} />}
+        {section === 'news'          && <News          showNotif={showNotif} onNavigate={handleNewsNavigate} />}
         {section === 'news'          && <News          showNotif={showNotif} />}
         {section === 'citoyens'      && <Citoyens      showNotif={showNotif} onGoToCasier={goToCasier} />}
         {section === 'groupes'       && <Groupes       showNotif={showNotif} />}
-        {section === 'plaintes'      && <Plaintes      showNotif={showNotif} />}
+        {section === 'plaintes'      && <Plaintes      showNotif={showNotif} targetId={newsTarget?.type === 'plainte' ? newsTarget?.id : null} onTargetOpened={() => setNewsTarget(null)} />}
         {section === 'saisies'       && <Saisies       showNotif={showNotif} />}
         {section === 'registreArmes' && <RegistreArmes showNotif={showNotif} />}
-        {section === 'convocations'  && <Convocations  showNotif={showNotif} />}
-        {section === 'notes'         && <Notes         showNotif={showNotif} />}
+        {section === 'convocations'  && <Convocations  showNotif={showNotif} targetId={newsTarget?.type === 'convocation' ? newsTarget?.id : null} onTargetOpened={() => setNewsTarget(null)} />}
+        {section === 'notes'         && <Notes         showNotif={showNotif} targetId={newsTarget?.type === 'note' ? newsTarget?.id : null} onTargetOpened={() => setNewsTarget(null)} />}
         {section === 'penal'         && <CodePenal />}
         {section === 'effectif'      && <Effectif      showNotif={showNotif} />}
       </div>

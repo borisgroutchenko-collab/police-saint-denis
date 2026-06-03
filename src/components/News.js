@@ -50,7 +50,7 @@ function formatDate(ts) {
     + ' à ' + date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 
-export default function News({ showNotif }) {
+export default function News({ showNotif, onNavigate }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filtreType, setFiltreType] = useState('');
@@ -254,7 +254,7 @@ export default function News({ showNotif }) {
                         </div>
                       )}
 
-                      {/* Agent + date */}
+                      {/* Agent + date + bouton Voir */}
                       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
                         <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: cfg.color, letterSpacing: 1 }}>
                           ✍ {item.agent}
@@ -265,6 +265,16 @@ export default function News({ showNotif }) {
                         <span style={{ fontSize: 10, color: 'rgba(244,237,216,.25)' }}>
                           {formatDate(item.ts)}
                         </span>
+                        {onNavigate && (
+                          <button
+                            onClick={() => onNavigate(item.type, item.id)}
+                            style={{
+                              marginLeft: 'auto', fontSize: 11, padding: '4px 12px', borderRadius: 2, cursor: 'pointer',
+                              border: '1px solid ' + cfg.color, background: cfg.bg,
+                              color: cfg.color, fontFamily: "'Special Elite', cursive", letterSpacing: 1,
+                            }}
+                          >→ Voir</button>
+                        )}
                       </div>
                     </div>
                   </div>

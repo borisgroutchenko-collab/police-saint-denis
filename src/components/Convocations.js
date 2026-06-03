@@ -174,8 +174,23 @@ function ConvocationModal({ convocation, citoyens, agents, onClose, onSaved, sho
 }
 
 // ── Composant principal ───────────────────────────────────────
-export default function Convocations({ showNotif }) {
+export default function Convocations({ showNotif, targetId, onTargetOpened }) {
   const [convocations, setConvocations] = useState([]);
+  // Surligner l'élément venant de News
+  React.useEffect(() => {
+    if (!targetId) return;
+    setTimeout(() => {
+      const el = document.getElementById('item-' + targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.style.transition = 'box-shadow 0.3s';
+        el.style.boxShadow = '0 0 0 3px var(--gold)';
+        setTimeout(() => { el.style.boxShadow = ''; }, 2500);
+      }
+      if (onTargetOpened) onTargetOpened();
+    }, 600);
+  }, [targetId]);
+
   const [citoyens, setCitoyens] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -309,7 +324,7 @@ export default function Convocations({ showNotif }) {
             {filtered.map(conv => {
               const statut = getStatut(conv.statut);
               return (
-                <div key={conv.id} style={{
+                <div key={conv.id} id={'item-' + conv.id} style={{
                   background: 'rgba(0,0,0,.25)',
                   border: '1px solid ' + statut.color + '55',
                   borderLeft: '4px solid ' + statut.color,

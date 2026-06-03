@@ -254,8 +254,23 @@ function NoteCard({ note, onOpen, onEdit, onDelete }) {
 }
 
 // ── Composant principal ────────────────────────────────────────
-export default function Notes({ showNotif }) {
+export default function Notes({ showNotif, targetId, onTargetOpened }) {
   const [notes, setNotes] = useState([]);
+  // Surligner l'élément venant de News
+  React.useEffect(() => {
+    if (!targetId) return;
+    setTimeout(() => {
+      const el = document.getElementById('item-' + targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.style.transition = 'box-shadow 0.3s';
+        el.style.boxShadow = '0 0 0 3px var(--gold)';
+        setTimeout(() => { el.style.boxShadow = ''; }, 2500);
+      }
+      if (onTargetOpened) onTargetOpened();
+    }, 600);
+  }, [targetId]);
+
   const [loading, setLoading] = useState(false);
   const [agents, setAgents] = useState([]);
   const [search, setSearch] = useState('');

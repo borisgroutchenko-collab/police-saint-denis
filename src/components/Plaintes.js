@@ -672,8 +672,23 @@ function PlainteDetail({ plainte, agents, citoyens, casiers, onBack, onEdit, onD
 }
 
 // ── Composant principal ────────────────────────────────────────
-export default function Plaintes({ showNotif }) {
+export default function Plaintes({ showNotif, targetId, onTargetOpened }) {
   const [plaintes, setPlaintes] = useState([]);
+  // Surligner l'élément venant de News
+  React.useEffect(() => {
+    if (!targetId) return;
+    setTimeout(() => {
+      const el = document.getElementById('item-' + targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.style.transition = 'box-shadow 0.3s';
+        el.style.boxShadow = '0 0 0 3px var(--gold)';
+        setTimeout(() => { el.style.boxShadow = ''; }, 2500);
+      }
+      if (onTargetOpened) onTargetOpened();
+    }, 600);
+  }, [targetId]);
+
   const [citoyens, setCitoyens] = useState([]);
   const [agents, setAgents] = useState([]);
   const [groupes, setGroupes] = useState([]);
