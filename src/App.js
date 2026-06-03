@@ -181,7 +181,6 @@ export default function App() {
         {section === 'verbalization' && <Verbalization showNotif={showNotif} />}
         {section === 'casier'        && <Casier        showNotif={showNotif} initialDossierId={casierTarget} onDossierOpened={() => setCasierTarget(null)} />}
         {section === 'news'          && <News          showNotif={showNotif} onNavigate={handleNewsNavigate} />}
-        {section === 'news'          && <News          showNotif={showNotif} />}
         {section === 'citoyens'      && <Citoyens      showNotif={showNotif} onGoToCasier={goToCasier} />}
         {section === 'groupes'       && <Groupes       showNotif={showNotif} />}
         {section === 'plaintes'      && <Plaintes      showNotif={showNotif} targetId={newsTarget?.type === 'plainte' ? newsTarget?.id : null} onTargetOpened={() => setNewsTarget(null)} />}
