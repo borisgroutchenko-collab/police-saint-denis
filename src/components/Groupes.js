@@ -255,6 +255,37 @@ function GroupeDetail({ groupe, enqs, plaintes, agents, onBack, onEdit, onDelete
   const [showEnquete, setShowEnquete] = useState(false);
   const [editEnquete, setEditEnquete] = useState(null);
   const [lightbox, setLightbox] = useState(null);
+  const [citoyensInfo, setCitoyensInfo] = React.useState({});
+
+  React.useEffect(() => {
+    // Charger statut citoyen + mostWanted pour les membres
+    const ids = (groupe.membres || []).filter(m => m.citoyenId).map(m => m.citoyenId);
+    if (!ids.length) return;
+    Promise.all([
+      getDocs(collection(db, 'citoyens')),
+      getDocs(collection(db, 'casier')),
+    ]).then(([citSnap, casierSnap]) => {
+      const citMap = {};
+      citSnap.docs.forEach(d => { citMap[d.id] = d.data(); });
+      const casierMap = {};
+      casierSnap.docs.forEach(d => {
+        const data = d.data();
+        if (data.nomComplet) casierMap[data.nomComplet.toLowerCase()] = data;
+      });
+      const info = {};
+      (groupe.membres || []).forEach(m => {
+        if (!m.citoyenId) return;
+        const cit = citMap[m.citoyenId] || {};
+        const nom = (m.nomComplet || (m.prenom + ' ' + m.nom) || '').toLowerCase();
+        const casier = casierMap[nom] || null;
+        info[m.citoyenId] = {
+          statut: cit.statut || 'actif',
+          mostWanted: casier?.mostWanted || false,
+        };
+      });
+      setCitoyensInfo(info);
+    }).catch(() => {});
+  }, [groupe.id]);
 
   async function deleteEnquete(eid) {
     if (!window.confirm("Supprimer ce dossier d'enquête ?")) return;
@@ -313,13 +344,25 @@ function GroupeDetail({ groupe, enqs, plaintes, agents, onBack, onEdit, onDelete
           <div style={{ marginBottom: 16 }}>
             <span className="field-label" style={{ display: 'block', marginBottom: 10 }}>👥 Membres</span>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
-              {groupe.membres.map((m, i) => (
-                <div key={i} style={{ background: 'rgba(0,0,0,.25)', border: '1px solid rgba(201,168,76,.2)', borderRadius: 3, padding: '10px 14px' }}>
-                  <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, fontWeight: 700, color: 'var(--paper)' }}>{m.prenom} {m.nom}</div>
-                  {m.role && <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'var(--gold)', letterSpacing: 1, marginTop: 3 }}>{m.role}</div>}
-                  {m.pseudo && <div style={{ fontSize: 12, color: 'rgba(244,237,216,.5)', fontStyle: 'italic', marginTop: 3 }}>alias {m.pseudo}</div>}
-                </div>
-              ))}
+              {groupe.membres.map((m, i) => {
+                const info = citoyensInfo[m.citoyenId] || {};
+                const statut = info.statut || 'actif';
+                const mw = info.mostWanted || false;
+                const bordeColor = mw ? '#CC0000' : statut === 'decede' ? 'rgba(136,136,136,.4)' : statut === 'disparu' ? 'rgba(255,204,68,.4)' : 'rgba(201,168,76,.2)';
+                const opacity = statut === 'decede' ? 0.65 : 1;
+                return (
+                  <div key={i} style={{ background: 'rgba(0,0,0,.25)', border: '1px solid ' + bordeColor, borderRadius: 3, padding: '10px 14px', opacity }}>
+                    {mw && <div style={{ marginBottom: 4 }}><span className="badge-mw" style={{ fontSize: 9 }}>🎯 MOST WANTED</span></div>}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, fontWeight: 700, color: 'var(--paper)' }}>{m.prenom} {m.nom}</div>
+                      {statut === 'decede'  && <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, color: '#888' }}>⚰ Décédé</span>}
+                      {statut === 'disparu' && <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, color: '#ffcc44' }}>❓ Disparu</span>}
+                    </div>
+                    {m.role && <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'var(--gold)', letterSpacing: 1, marginTop: 3 }}>{m.role}</div>}
+                    {m.pseudo && <div style={{ fontSize: 12, color: 'rgba(244,237,216,.5)', fontStyle: 'italic', marginTop: 3 }}>alias {m.pseudo}</div>}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
