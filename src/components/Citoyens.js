@@ -569,6 +569,23 @@ export default function Citoyens({ showNotif, onGoToCasier }) {
                       <span className="stat-badge" style={{ borderColor: '#4a9a4a', color: '#90ee90' }}>✓ Casier vierge</span>
                     )}
                   </div>
+                  {/* Badge convocation */}
+                  {(() => {
+                    const convs = convocationsMap[(c.nomComplet || '').toLowerCase()] || [];
+                    if (!convs.length) return null;
+                    const sorted = [...convs].sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+                    const last = sorted[0];
+                    const s = last.statut || 'non_envoyee';
+                    const sColor = s === 'realisee' ? '#90ee90' : s === 'envoyee' ? '#ffcc44' : '#aaaaaa';
+                    const sLabel = s === 'realisee' ? '✅ Convoqué — réalisée' : s === 'envoyee' ? '📬 Convoqué — envoyée' : '📭 Convoqué — non envoyée';
+                    return (
+                      <div style={{ marginTop: 6 }}>
+                        <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, letterSpacing: 1, padding: '2px 8px', borderRadius: 2, border: '1px solid ' + sColor, color: sColor, background: sColor + '22', whiteSpace: 'nowrap' }}>
+                          {sLabel}{convs.length > 1 ? ' (+' + (convs.length - 1) + ')' : ''}
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}

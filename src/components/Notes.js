@@ -19,7 +19,7 @@ function getCouleur(key) {
 }
 
 // ── Modal création / modification ─────────────────────────────
-function NoteModal({ note, onClose, onSaved, showNotif }) {
+function NoteModal({ note, agents, onClose, onSaved, showNotif }) {
   const [titre, setTitre] = useState(note?.titre || '');
   const [contenu, setContenu] = useState(note?.contenu || '');
   const [couleur, setCouleur] = useState(note?.couleur || 'or');
@@ -238,6 +238,7 @@ function NoteCard({ note, onOpen, onEdit, onDelete }) {
 export default function Notes({ showNotif }) {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [agents, setAgents] = useState([]);
   const [search, setSearch] = useState('');
   const [view, setView] = useState('list'); // 'list' | 'detail'
   const [selected, setSelected] = useState(null);
@@ -258,7 +259,12 @@ export default function Notes({ showNotif }) {
     setLoading(false);
   }, [showNotif]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    getDocs(query(collection(db, 'effectif'), orderBy('nom')))
+      .then(snap => setAgents(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+      .catch(() => {});
+  }, [load]);
 
   async function deleteNote(note) {
     if (!window.confirm(`Supprimer la note "${note.titre}" ?`)) return;

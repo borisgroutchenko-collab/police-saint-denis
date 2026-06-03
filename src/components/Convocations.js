@@ -16,7 +16,7 @@ function getStatut(key) {
 }
 
 // ── Modal création / modification ─────────────────────────────
-function ConvocationModal({ convocation, citoyens, onClose, onSaved, showNotif }) {
+function ConvocationModal({ convocation, citoyens, agents, onClose, onSaved, showNotif }) {
   const now = new Date();
   const rpDate = '1905-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
 
@@ -110,9 +110,20 @@ function ConvocationModal({ convocation, citoyens, onClose, onSaved, showNotif }
         {/* Agent */}
         <div style={{ marginBottom: 16 }}>
           <label className="field-label">Agent convocateur *</label>
-          <input type="text" className="field-input"
-            placeholder="Nom et grade de l'agent..."
-            value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />
+          {agents && agents.length > 0 ? (
+            <select className="field-select" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))}>
+              <option value="">— Sélectionner un agent —</option>
+              {agents.map(a => (
+                <option key={a.id} value={`${a.grade || ''} ${a.prenom || ''} ${a.nom || ''}`.trim()}>
+                  {a.grade ? a.grade + ' — ' : ''}{a.prenom} {a.nom}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input type="text" className="field-input"
+              placeholder="Nom et grade de l'agent..."
+              value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />
+          )}
         </div>
 
         {/* Raison */}
@@ -172,15 +183,19 @@ export default function Convocations({ showNotif }) {
   const [showModal, setShowModal] = useState(false);
   const [selected, setSelected] = useState(null); // convocation en cours d'édition
 
+  const [agents, setAgents] = useState([]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [cSnap, citSnap] = await Promise.all([
+      const [cSnap, citSnap, agentSnap] = await Promise.all([
         getDocs(query(collection(db, 'convocations'), orderBy('createdAt', 'desc'))),
         getDocs(query(collection(db, 'citoyens'), orderBy('nomComplet'))),
+        getDocs(query(collection(db, 'effectif'), orderBy('nom'))),
       ]);
       setConvocations(cSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setCitoyens(citSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setAgents(agentSnap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
     setLoading(false);
   }, [showNotif]);
@@ -224,6 +239,7 @@ export default function Convocations({ showNotif }) {
         <ConvocationModal
           convocation={selected}
           citoyens={citoyens}
+          agents={agents}
           onClose={() => { setShowModal(false); setSelected(null); }}
           onSaved={() => { setShowModal(false); setSelected(null); load(); }}
           showNotif={showNotif}
