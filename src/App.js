@@ -12,7 +12,6 @@ import Plaintes from './components/Plaintes';
 import Notes from './components/Notes';
 import Groupes from './components/Groupes';
 import News from './components/News';
-import News from './components/News';
 import Convocations from './components/Convocations';
 import Saisies from './components/Saisies';
 import RegistreArmes from './components/RegistreArmes';
