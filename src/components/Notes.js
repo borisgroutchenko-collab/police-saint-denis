@@ -310,7 +310,7 @@ export default function Notes({ showNotif }) {
     return (
       <>
         {modal !== null && (
-          <NoteModal note={modal} onClose={() => setModal(null)}
+          <NoteModal note={modal} agents={agents} onClose={() => setModal(null)}
             onSaved={() => { setModal(null); load(); }}
             showNotif={showNotif} />
         )}
@@ -328,7 +328,7 @@ export default function Notes({ showNotif }) {
   return (
     <div>
       {modal !== null && (
-        <NoteModal note={modal} onClose={() => setModal(null)}
+        <NoteModal note={modal} agents={agents} onClose={() => setModal(null)}
           onSaved={() => { setModal(null); load(); }}
           showNotif={showNotif} />
       )}
