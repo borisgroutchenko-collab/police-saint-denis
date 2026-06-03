@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../firebase';
+import SearchableSelect from './SearchableSelect';
 import {
   collection, getDocs, addDoc, deleteDoc, updateDoc,
   doc, orderBy, query, serverTimestamp, getDoc, setDoc,

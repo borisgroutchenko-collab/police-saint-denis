@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../firebase';
+import SearchableSelect from './SearchableSelect';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc,
   doc, orderBy, query, serverTimestamp,
@@ -111,14 +112,12 @@ function ConvocationModal({ convocation, citoyens, agents, onClose, onSaved, sho
         <div style={{ marginBottom: 16 }}>
           <label className="field-label">Agent convocateur *</label>
           {agents && agents.length > 0 ? (
-            <select className="field-select" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))}>
-              <option value="">— Sélectionner un agent —</option>
-              {agents.map(a => (
-                <option key={a.id} value={`${a.grade || ''} ${a.prenom || ''} ${a.nom || ''}`.trim()}>
-                  {a.grade ? a.grade + ' — ' : ''}{a.prenom} {a.nom}
-                </option>
-              ))}
-            </select>
+<SearchableSelect
+              value={form.agent}
+              onChange={v => setForm(f => ({ ...f, agent: v }))}
+              options={agents.map(a => ({ value: `${a.grade || ''} ${a.prenom || ''} ${a.nom || ''}`.trim(), label: (a.grade ? a.grade + ' — ' : '') + (a.prenom || '') + ' ' + (a.nom || '') }))}
+              placeholder="— Sélectionner un agent —"
+            />
           ) : (
             <input type="text" className="field-input"
               placeholder="Nom et grade de l'agent..."

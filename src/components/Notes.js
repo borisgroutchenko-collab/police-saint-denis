@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../firebase';
+import SearchableSelect from './SearchableSelect';
 import {
   collection, getDocs, addDoc, deleteDoc, updateDoc,
   doc, orderBy, query, serverTimestamp,
@@ -76,20 +77,12 @@ function NoteModal({ note, agents, onClose, onSaved, showNotif }) {
         {/* Agent rédacteur */}
         <div style={{ marginBottom: 16 }}>
           <label className="field-label">Agent rédacteur *</label>
-          {agents && agents.length > 0 ? (
-            <select className="field-select" value={agent} onChange={e => setAgent(e.target.value)}>
-              <option value="">— Sélectionner un agent —</option>
-              {agents.map(a => (
-                <option key={a.id} value={`${a.grade || ''} ${a.prenom || ''} ${a.nom || ''}`.trim()}>
-                  {a.grade ? a.grade + ' — ' : ''}{a.prenom} {a.nom}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input type="text" className="field-input"
-              placeholder="Nom et grade de l'agent rédacteur..."
-              value={agent} onChange={e => setAgent(e.target.value)} />
-          )}
+<SearchableSelect
+            value={agent}
+            onChange={v => setAgent(v)}
+            options={(agents || []).map(a => ({ value: `${a.grade || ''} ${a.prenom || ''} ${a.nom || ''}`.trim(), label: (a.grade ? a.grade + ' — ' : '') + (a.prenom || '') + ' ' + (a.nom || '') }))}
+            placeholder="— Sélectionner un agent —"
+          />
         </div>
 
         {/* Couleur */}

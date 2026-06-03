@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { db } from '../firebase';
+import SearchableSelect from './SearchableSelect';
 import {
   collection, doc, getDoc, getDocs, updateDoc, deleteDoc,
   addDoc, orderBy, query, serverTimestamp, writeBatch,
@@ -53,16 +54,12 @@ function EditModal({ dossierId, infraction, agents, onClose, onSaved, showNotif 
           <div><label className="field-label">Heure</label><input type="time" className="field-input" value={form.heure} onChange={e => setForm(f => ({ ...f, heure: e.target.value }))} /></div>
           <div>
             <label className="field-label">Agent verbalisateur</label>
-            {agents?.length > 0 ? (
-              <select className="field-select" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))}>
-                <option value="">— Sélectionner —</option>
-                {agents.map(a => <option key={a.id} value={`${a.grade} ${a.prenom} ${a.nom}`}>{a.grade} — {a.prenom} {a.nom}</option>)}
-                <option value="__autre__">✍ Saisir manuellement...</option>
-              </select>
-            ) : (
-              <input type="text" className="field-input" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />
-            )}
-            {form.agent === '__autre__' && <input type="text" className="field-input" style={{ marginTop: 8 }} placeholder="Nom de l'agent" onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />}
+            <SearchableSelect
+              value={form.agent}
+              onChange={v => setForm(f => ({ ...f, agent: v }))}
+              options={(agents || []).map(a => ({ value: `${a.grade || ''} ${a.prenom || ''} ${a.nom || ''}`.trim(), label: (a.grade ? a.grade + ' — ' : '') + (a.prenom || '') + ' ' + (a.nom || '') }))}
+              placeholder="— Sélectionner un agent —"
+            />
           </div>
         </div>
         <div className="form-grid" style={{ marginBottom: 16 }}>
@@ -153,16 +150,12 @@ function EnqueteModal({ dossierId, enquete, agents, onClose, onSaved, showNotif 
           <div><label className="field-label">Heure</label><input type="time" className="field-input" value={form.heure} onChange={e => setForm(f => ({ ...f, heure: e.target.value }))} /></div>
           <div>
             <label className="field-label">Agent enquêteur</label>
-            {agents?.length > 0 ? (
-              <select className="field-select" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))}>
-                <option value="">— Sélectionner —</option>
-                {agents.map(a => <option key={a.id} value={`${a.grade} ${a.prenom} ${a.nom}`}>{a.grade} — {a.prenom} {a.nom}</option>)}
-                <option value="__autre__">✍ Saisir manuellement...</option>
-              </select>
-            ) : (
-              <input type="text" className="field-input" placeholder="Ex: Inspecteur Morgan" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />
-            )}
-            {form.agent === '__autre__' && <input type="text" className="field-input" style={{ marginTop: 8 }} placeholder="Nom de l'agent" onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />}
+            <SearchableSelect
+              value={form.agent}
+              onChange={v => setForm(f => ({ ...f, agent: v }))}
+              options={(agents || []).map(a => ({ value: `${a.grade || ''} ${a.prenom || ''} ${a.nom || ''}`.trim(), label: (a.grade ? a.grade + ' — ' : '') + (a.prenom || '') + ' ' + (a.nom || '') }))}
+              placeholder="— Sélectionner un agent —"
+            />
           </div>
         </div>
         <div className="form-grid" style={{ marginBottom: 16 }}>
