@@ -35,7 +35,7 @@ function ConvocationModal({ convocation, citoyens, onClose, onSaved, showNotif }
 
   async function save() {
     if (!citoyenId) { showNotif('Sélectionnez un citoyen', true); return; }
-    if (!form.agent.trim()) { showNotif('L'agent est obligatoire', true); return; }
+    if (!form.agent.trim()) { showNotif('Agent obligatoire', true); return; }
     if (!form.raison.trim()) { showNotif('La raison est obligatoire', true); return; }
 
     const data = {
