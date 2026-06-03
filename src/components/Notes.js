@@ -37,7 +37,7 @@ function NoteModal({ note, onClose, onSaved, showNotif }) {
 
   async function save() {
     if (!titre.trim()) { showNotif('Le titre est obligatoire', true); return; }
-    if (!agent.trim()) { showNotif('Le nom de l'agent est obligatoire', true); return; }
+    if (!agent.trim()) { showNotif('Agent obligatoire', true); return; }
     const data = { titre: titre.trim(), contenu, couleur, photos, agent: agent.trim(), updatedAt: serverTimestamp() };
     try {
       if (note?.id) {
