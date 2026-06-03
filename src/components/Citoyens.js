@@ -395,6 +395,9 @@ export default function Citoyens({ showNotif, onGoToCasier }) {
   const [convocationsMap, setConvocationsMap] = useState({}); // { citoyenId: [{ nomGroupe, role, pseudo }] }
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [filtreStatut, setFiltreStatut] = useState('');      // '' | 'actif' | 'decede' | 'disparu'
+  const [filtreCasier, setFiltreCasier] = useState('');      // '' | 'oui' | 'non'
+  const [filtreMostWanted, setFiltreMostWanted] = useState(false);
   const [view, setView] = useState('list');
   const [selected, setSelected] = useState(null);
   const [modal, setModal] = useState(null);
@@ -461,11 +464,23 @@ export default function Citoyens({ showNotif, onGoToCasier }) {
     setView('detail');
   }
 
-  const filtered = citoyens.filter(c =>
-    (c.nomComplet || '').toLowerCase().includes(search.toLowerCase()) ||
-    (c.carteId || '').toLowerCase().includes(search.toLowerCase()) ||
-    (c.metier || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = citoyens.filter(c => {
+    const q = search.toLowerCase();
+    const matchSearch =
+      (c.nomComplet || '').toLowerCase().includes(q) ||
+      (c.carteId || '').toLowerCase().includes(q) ||
+      (c.metier || '').toLowerCase().includes(q);
+
+    const casier = casiers[(c.nomComplet || '').toLowerCase()] || null;
+    const hasCasier = !!casier;
+    const isMostWanted = casier?.mostWanted || false;
+
+    const matchStatut  = !filtreStatut || (c.statut || 'actif') === filtreStatut;
+    const matchCasier  = !filtreCasier || (filtreCasier === 'oui' ? hasCasier : !hasCasier);
+    const matchMW      = !filtreMostWanted || isMostWanted;
+
+    return matchSearch && matchStatut && matchCasier && matchMW;
+  });
 
   // ── Vue détail ──
   if (view === 'detail' && selected) {
@@ -521,6 +536,70 @@ export default function Citoyens({ showNotif, onGoToCasier }) {
             value={search} onChange={e => setSearch(e.target.value)}
           />
           <button className="btn-gold" onClick={load}>🔄 Actualiser</button>
+        </div>
+
+        {/* Filtres cumulables */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+
+          {/* Statut citoyen */}
+          <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, color: 'rgba(244,237,216,.4)', letterSpacing: 1 }}>STATUT</span>
+          {[
+            { key: 'actif',   label: '✓ Actif',    color: '#90ee90' },
+            { key: 'decede',  label: '⚰ Décédé',   color: '#888' },
+            { key: 'disparu', label: '❓ Disparu',  color: '#ffcc44' },
+          ].map(f => (
+            <button key={f.key}
+              onClick={() => setFiltreStatut(filtreStatut === f.key ? '' : f.key)}
+              style={{
+                fontSize: 11, padding: '5px 12px', borderRadius: 2, cursor: 'pointer',
+                border: '1px solid ' + f.color,
+                background: filtreStatut === f.key ? f.color + '33' : 'transparent',
+                color: f.color, fontFamily: "'Special Elite', cursive", letterSpacing: 1,
+              }}>{f.label}</button>
+          ))}
+
+          <span style={{ width: 1, height: 20, background: 'rgba(201,168,76,.2)', margin: '0 4px' }} />
+
+          {/* Casier judiciaire */}
+          <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, color: 'rgba(244,237,216,.4)', letterSpacing: 1 }}>CASIER</span>
+          {[
+            { key: 'oui', label: '⚠ Oui', color: '#ff6b6b' },
+            { key: 'non', label: '✓ Vierge', color: '#90ee90' },
+          ].map(f => (
+            <button key={f.key}
+              onClick={() => setFiltreCasier(filtreCasier === f.key ? '' : f.key)}
+              style={{
+                fontSize: 11, padding: '5px 12px', borderRadius: 2, cursor: 'pointer',
+                border: '1px solid ' + f.color,
+                background: filtreCasier === f.key ? f.color + '33' : 'transparent',
+                color: f.color, fontFamily: "'Special Elite', cursive", letterSpacing: 1,
+              }}>{f.label}</button>
+          ))}
+
+          <span style={{ width: 1, height: 20, background: 'rgba(201,168,76,.2)', margin: '0 4px' }} />
+
+          {/* Most Wanted */}
+          <button
+            onClick={() => setFiltreMostWanted(!filtreMostWanted)}
+            style={{
+              fontSize: 11, padding: '5px 12px', borderRadius: 2, cursor: 'pointer',
+              border: '1px solid #CC0000',
+              background: filtreMostWanted ? 'rgba(204,0,0,.2)' : 'transparent',
+              color: '#ff6b6b', fontFamily: "'Special Elite', cursive", letterSpacing: 1,
+            }}>🎯 Most Wanted</button>
+
+          {/* Reset si filtres actifs */}
+          {(filtreStatut || filtreCasier || filtreMostWanted) && (
+            <button
+              onClick={() => { setFiltreStatut(''); setFiltreCasier(''); setFiltreMostWanted(false); }}
+              style={{ fontSize: 11, padding: '5px 12px', borderRadius: 2, cursor: 'pointer', border: '1px solid rgba(244,237,216,.2)', color: 'rgba(244,237,216,.4)', fontFamily: "'Special Elite', cursive" }}>
+              ✕ Réinitialiser
+            </button>
+          )}
+
+          <span style={{ marginLeft: 'auto', fontFamily: "'Special Elite', cursive", fontSize: 10, color: 'rgba(244,237,216,.35)' }}>
+            {filtered.length} résultat(s)
+          </span>
         </div>
 
         {loading && <div><span className="spinner" /> Chargement...</div>}
