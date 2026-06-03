@@ -166,11 +166,6 @@ export default function App() {
             style={{ marginRight: 6, background: 'rgba(201,168,76,.15)', border: '1px solid rgba(201,168,76,.4)', borderRadius: 2, padding: '4px 12px', fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'var(--gold)', cursor: 'pointer', letterSpacing: 1 }}
             title="Exporter une sauvegarde JSON"
           >💾 Backup</button>
-          <button
-            onClick={exportBackup}
-            style={{ marginRight: 6, background: 'rgba(201,168,76,.15)', border: '1px solid rgba(201,168,76,.4)', borderRadius: 2, padding: '4px 12px', fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'var(--gold)', cursor: 'pointer', letterSpacing: 1 }}
-            title="Exporter une sauvegarde JSON"
-          >💾 Backup</button>
           <button className="logout-btn" onClick={() => setLoggedIn(false)}>Déconnexion</button>
         </div>
       </div>
