@@ -79,7 +79,6 @@ function Login({ onLogin }) {
 // ── Navigation tabs ──────────────────────────────────────────
 const SECTIONS = [
   { key: 'news',          label: '📰 News' },
-  { key: 'news',          label: '📰 News' },
   { key: 'citoyens',      label: '👥 Citoyens' },
   { key: 'groupes',       label: '⚔ Groupes' },
   { key: 'plaintes',      label: '📝 Dépôts de Plainte' },
