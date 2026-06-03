@@ -280,8 +280,12 @@ export default function Notes({ showNotif }) {
 
   useEffect(() => {
     load();
-    getDocs(query(collection(db, 'effectif'), orderBy('nom')))
-      .then(snap => setAgents(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    getDocs(collection(db, 'effectif'))
+      .then(snap => {
+        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        list.sort((a, b) => ((a.nom || '') + ' ' + (a.prenom || '')).localeCompare((b.nom || '') + ' ' + (b.prenom || '')));
+        setAgents(list);
+      })
       .catch(() => {});
   }, [load]);
 

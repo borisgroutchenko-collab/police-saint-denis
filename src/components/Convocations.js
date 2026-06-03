@@ -191,11 +191,13 @@ export default function Convocations({ showNotif }) {
       const [cSnap, citSnap, agentSnap] = await Promise.all([
         getDocs(query(collection(db, 'convocations'), orderBy('createdAt', 'desc'))),
         getDocs(query(collection(db, 'citoyens'), orderBy('nomComplet'))),
-        getDocs(query(collection(db, 'effectif'), orderBy('nom'))),
+        getDocs(collection(db, 'effectif')),
       ]);
       setConvocations(cSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setCitoyens(citSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setAgents(agentSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const agentList = agentSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      agentList.sort((a, b) => ((a.nom||'')+(a.prenom||'')).localeCompare((b.nom||'')+(b.prenom||'')));
+      setAgents(agentList);
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
     setLoading(false);
   }, [showNotif]);
