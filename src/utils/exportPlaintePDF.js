@@ -48,12 +48,14 @@ function row(doc, label, value, y, rouge, orange) {
   return y + 5.5;
 }
 
-function checkBreak(doc, y, pageRef) {
+function checkBreak(doc, y, pageRef, fs) {
   if (y > H - 55) {
     footer(doc, pageRef.current, '?');
     doc.addPage();
     drawPageBg(doc);
     addSEFont(doc);
+    doc.setFont('SpecialElite', 'normal');
+    if (fs) doc.setFontSize(fs);
     pageRef.current++;
     return 55;
   }
@@ -153,7 +155,7 @@ export function exportPlaintePDF(plainte, casiersLies, showNotif) {
       var fLines = doc.splitTextToSize(plainte.faits, W - 36);
       setFill(doc, INK); doc.setFont('SpecialElite', 'normal'); doc.setFontSize(9.5);
       for (var fi = 0; fi < fLines.length; fi++) {
-        y = checkBreak(doc, y, pageRef);
+        y = checkBreak(doc, y, pageRef, 9.5);
         doc.text(fLines[fi], 18, y); y += 5.2;
       }
       y += 2; y = checkBreak(doc, y, pageRef); y = sep(doc, y);
@@ -165,7 +167,7 @@ export function exportPlaintePDF(plainte, casiersLies, showNotif) {
       var eqLines = doc.splitTextToSize(plainte.elementsEnquete, W - 36);
       setFill(doc, BLUE_INK); doc.setFont('SpecialElite', 'normal'); doc.setFontSize(9.5);
       for (var ei = 0; ei < eqLines.length; ei++) {
-        y = checkBreak(doc, y, pageRef);
+        y = checkBreak(doc, y, pageRef, 9.5);
         doc.text(eqLines[ei], 18, y); y += 5.2;
       }
       y += 2; y = checkBreak(doc, y, pageRef); y = sep(doc, y);
@@ -196,7 +198,7 @@ export function exportPlaintePDF(plainte, casiersLies, showNotif) {
     var rLines = doc.splitTextToSize(resume, W - 36);
     setFill(doc, INK); doc.setFont('SpecialElite', 'normal'); doc.setFontSize(9.5);
     for (var ri = 0; ri < rLines.length; ri++) {
-      y = checkBreak(doc, y, pageRef);
+      y = checkBreak(doc, y, pageRef, 9.5);
       doc.text(rLines[ri], 18, y); y += 5.2;
     }
     y += 3;

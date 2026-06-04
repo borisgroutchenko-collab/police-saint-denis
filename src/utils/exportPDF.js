@@ -77,12 +77,14 @@ function footer(doc, page, total) {
   );
 }
 
-function checkBreak(doc, y, pageRef) {
+function checkBreak(doc, y, pageRef, fs) {
   if (y > H - 55) {
     footer(doc, pageRef.current, '?');
     doc.addPage();
     drawPageBg(doc);
     addSEFont(doc);
+    doc.setFont('SpecialElite', 'normal');
+    if (fs) doc.setFontSize(fs);
     pageRef.current++;
     return 55;
   }
@@ -168,7 +170,7 @@ export function exportPDF(dossier, infs, enqs, showNotif) {
       y += 4.8;
 
       (inf.infractions || []).forEach(function(x) {
-        y = checkBreak(doc, y, pageRef);
+        y = checkBreak(doc, y, pageRef, 9.5);
         setFill(doc, INK); doc.setFont('SpecialElite','normal'); doc.setFontSize(9.5);
         doc.text(x.num + '  -  ' + x.nom, 18, y);
         doc.text(x.amende + ' $', W - 18, y, { align: 'right' });
@@ -179,7 +181,7 @@ export function exportPDF(dossier, infs, enqs, showNotif) {
         setFill(doc, INK_LIGHT); doc.setFont('SpecialElite','normal'); doc.setFontSize(8.5);
         var dlines = doc.splitTextToSize('Circonstances : ' + inf.desc, W - 30);
         for (var di = 0; di < dlines.length; di++) {
-          y = checkBreak(doc, y, pageRef);
+          y = checkBreak(doc, y, pageRef, 8.5);
           doc.text(dlines[di], 18, y); y += 4.5;
         }
         y += 1;
@@ -215,7 +217,7 @@ export function exportPDF(dossier, infs, enqs, showNotif) {
         if (enq.elementsEnquete) {
           var eLines = doc.splitTextToSize('Elements : ' + enq.elementsEnquete, W - 30);
           for (var eli = 0; eli < eLines.length; eli++) {
-            y = checkBreak(doc, y, pageRef);
+            y = checkBreak(doc, y, pageRef, 8.5);
             doc.text(eLines[eli], 18, y); y += 4.5;
           }
         }
