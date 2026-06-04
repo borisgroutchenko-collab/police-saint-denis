@@ -209,10 +209,12 @@ function PlainteModal({ plainte, citoyens, agents, groupes, onClose, onSaved, sh
                 <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'rgba(201,168,76,.7)', letterSpacing: 1 }}>Plaignant {i + 1}</span>
                 {plaignants.length > 1 && <button className="btn-red" style={{ fontSize: 10, padding: '2px 8px' }} onClick={() => removePlaignant(i)}>✕ Retirer</button>}
               </div>
-              <select className="field-select" value={p.citoyenId || ''} onChange={e => selectCitoyenPlaignant(i, e.target.value)}>
-                <option value="">— Sélectionner un citoyen enregistré —</option>
-                {citoyens.map(c => <option key={c.id} value={c.id}>{c.prenom} {c.nom}{c.metier ? ' (' + c.metier + ')' : ''}</option>)}
-              </select>
+<SearchableSelect
+              value={p.citoyenId || ''}
+              onChange={v => selectCitoyenPlaignant(i, v)}
+              options={citoyens.map(c => ({ value: c.id, label: (c.prenom||'') + ' ' + (c.nom||'') + (c.metier ? ' — ' + c.metier : '') }))}
+              placeholder="— Sélectionner un citoyen enregistré —"
+            />
               {p.citoyenId && (
                 <div style={{ marginTop: 6, fontSize: 12, color: 'rgba(201,168,76,.7)', fontFamily: "'Special Elite', cursive" }}>
                   ✓ {p.prenom} {p.nom}
@@ -240,10 +242,12 @@ function PlainteModal({ plainte, citoyens, agents, groupes, onClose, onSaved, sh
               </label>
               {!m.inconnu && (
                 <>
-                  <select className="field-select" value={m.citoyenId || ''} onChange={e => selectCitoyenMis(i, e.target.value)}>
-                    <option value="">— Sélectionner un citoyen enregistré —</option>
-                    {citoyens.map(c => <option key={c.id} value={c.id}>{c.prenom} {c.nom}{c.metier ? ' (' + c.metier + ')' : ''}</option>)}
-                  </select>
+<SearchableSelect
+                  value={m.citoyenId || ''}
+                  onChange={v => selectCitoyenMis(i, v)}
+                  options={citoyens.map(c => ({ value: c.id, label: (c.prenom||'') + ' ' + (c.nom||'') + (c.metier ? ' — ' + c.metier : '') }))}
+                  placeholder="— Sélectionner un citoyen enregistré —"
+                />
                   {m.citoyenId && (
                     <div style={{ marginTop: 6, fontSize: 12, color: '#ff9966', fontFamily: "'Special Elite', cursive" }}>
                       ✓ {m.prenom} {m.nom}{m.carteId ? ' — ' + m.carteId : ''}
