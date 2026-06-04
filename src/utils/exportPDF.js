@@ -78,7 +78,7 @@ function footer(doc, page, total) {
 }
 
 function checkBreak(doc, y, pageRef) {
-  if (y > H - 50) {
+  if (y > H - 55) {
     footer(doc, pageRef.current, '?');
     doc.addPage();
     drawPageBg(doc);
@@ -167,6 +167,7 @@ export function exportPDF(dossier, infs, enqs, showNotif) {
       y += 4.8;
 
       (inf.infractions || []).forEach(function(x) {
+        y = checkBreak(doc, y, pageRef);
         setFill(doc, INK); doc.setFont('SpecialElite','normal'); doc.setFontSize(9.5);
         doc.text(x.num + '  -  ' + x.nom, 18, y);
         doc.text(x.amende + ' $', W - 18, y, { align: 'right' });
@@ -176,7 +177,11 @@ export function exportPDF(dossier, infs, enqs, showNotif) {
       if (inf.desc) {
         setFill(doc, INK_LIGHT); doc.setFont('SpecialElite','normal'); doc.setFontSize(8.5);
         var dlines = doc.splitTextToSize('Circonstances : ' + inf.desc, W - 30);
-        doc.text(dlines, 18, y); y += dlines.length * 4.5 + 1;
+        for (var di = 0; di < dlines.length; di++) {
+          y = checkBreak(doc, y, pageRef);
+          doc.text(dlines[di], 18, y); y += 4.5;
+        }
+        y += 1;
       }
 
       setFill(doc, inf.sisika ? RED : INK_LIGHT); doc.setFont('SpecialElite','normal'); doc.setFontSize(8.5);
@@ -203,12 +208,15 @@ export function exportPDF(dossier, infs, enqs, showNotif) {
         setFill(doc, GOLD); doc.setFont('SpecialElite','normal'); doc.setFontSize(9.5);
         doc.text(enq.titre || 'Enquete sans titre', 18, y); y += 4.8;
         setFill(doc, INK_LIGHT); doc.setFontSize(8.5);
-        if (enq.date) { doc.text(enq.date + (enq.heure ? ' a ' + enq.heure : ''), 18, y); y += 4.8; }
-        if (enq.localisation) { doc.text('Localisation : ' + enq.localisation, 18, y); y += 4.8; }
-        if (enq.contact) { doc.text('Contact(s) : ' + enq.contact, 18, y); y += 4.8; }
+        if (enq.date) { y = checkBreak(doc, y, pageRef); doc.text(enq.date + (enq.heure ? ' a ' + enq.heure : ''), 18, y); y += 4.8; }
+        if (enq.localisation) { y = checkBreak(doc, y, pageRef); doc.text('Localisation : ' + enq.localisation, 18, y); y += 4.8; }
+        if (enq.contact) { y = checkBreak(doc, y, pageRef); doc.text('Contact(s) : ' + enq.contact, 18, y); y += 4.8; }
         if (enq.elementsEnquete) {
           var eLines = doc.splitTextToSize('Elements : ' + enq.elementsEnquete, W - 30);
-          doc.text(eLines, 18, y); y += eLines.length * 4.5;
+          for (var eli = 0; eli < eLines.length; eli++) {
+            y = checkBreak(doc, y, pageRef);
+            doc.text(eLines[eli], 18, y); y += 4.5;
+          }
         }
         y += 4;
       }
@@ -222,9 +230,15 @@ export function exportPDF(dossier, infs, enqs, showNotif) {
       ? "Des infractions entrainant un sejour a Sisika ont ete constatees, et il est recommande au juge de prononcer ladite peine conformement au code penal du Comte de Lemoyne."
       : "Aucune infraction n'entraine de sejour a Sisika. Le prevenu est passible d'amendes uniquement.";
     var resume = 'Le prevenu ' + d.nomComplet + ' (No identite : ' + d.idNum + ') a ete verbalise ' + infs.length + " fois pour un total d'amendes de " + (d.totalAmende||0) + ' $. ' + sisikaTxt;
-    y = tblock(doc, resume, y, INK);
+    var resumeLines = doc.splitTextToSize(resume, W - 36);
+    setFill(doc, INK); doc.setFont('SpecialElite','normal'); doc.setFontSize(9.5);
+    for (var rl = 0; rl < resumeLines.length; rl++) {
+      y = checkBreak(doc, y, pageRef);
+      doc.text(resumeLines[rl], 18, y); y += 5.2;
+    }
 
-    footer(doc, pageRef.current, pageRef.current + 1);
+    var totalPages = pageRef.current + 1;
+    footer(doc, pageRef.current, totalPages);
     doc.addPage(); drawPageBg(doc);
     y = 40;
     setFill(doc, GOLD); doc.setFont('SpecialElite','normal'); doc.setFontSize(11);
@@ -241,7 +255,7 @@ export function exportPDF(dossier, infs, enqs, showNotif) {
     doc.text('POLICE DE', cx, y + 18, { align: 'center' });
     doc.text('LEMOYNE', cx, y + 21.5, { align: 'center' });
     doc.setFontSize(5.5); doc.text('- 1905 -', cx, y + 25, { align: 'center' });
-    footer(doc, pageRef.current + 1, pageRef.current + 1);
+    footer(doc, totalPages, totalPages);
 
     var filename = 'Dossier_' + (d.nomComplet || 'inconnu').replace(/ /g, '_') + '.pdf';
     doc.save(filename);

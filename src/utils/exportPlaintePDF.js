@@ -48,6 +48,17 @@ function row(doc, label, value, y, rouge, orange) {
   return y + 5.5;
 }
 
+function checkBreak(doc, y, pageRef) {
+  if (y > H - 55) {
+    footer(doc, pageRef.current, '?');
+    doc.addPage();
+    drawPageBg(doc);
+    pageRef.current++;
+    return 25;
+  }
+  return y;
+}
+
 function tblock(doc, text, y, colorRgb, fs) {
   setFill(doc, colorRgb || INK);
   doc.setFont('SpecialElite', 'normal'); doc.setFontSize(fs || 9.5);
@@ -84,6 +95,7 @@ export function exportPlaintePDF(plainte, casiersLies, showNotif) {
     var doc = new jsPDF({ unit: 'mm', format: 'a4' });
     addSEFont(doc);
     var SIG_HEIGHT = 28;
+    var pageRef = { current: 1 };
     var statutLabel = { ouverte: 'OUVERTE', instruite: 'EN INSTRUCTION', classee: 'CLASSEE' }[plainte.statut] || (plainte.statut || '').toUpperCase();
 
     drawPageBg(doc);
@@ -102,6 +114,7 @@ export function exportPlaintePDF(plainte, casiersLies, showNotif) {
     y = row(doc, 'Statut :', statutLabel, y, plainte.statut === 'ouverte', plainte.statut === 'instruite');
     y += 2; y = sep(doc, y);
 
+    y = checkBreak(doc, y, pageRef);
     y = sec(doc, y, '- PLAIGNANT(S) -');
     (plainte.plaignants || []).forEach(function(p) {
       setFill(doc, INK); doc.setFont('SpecialElite', 'normal'); doc.setFontSize(10);
@@ -109,6 +122,7 @@ export function exportPlaintePDF(plainte, casiersLies, showNotif) {
     });
     y += 2; y = sep(doc, y);
 
+    y = checkBreak(doc, y, pageRef);
     y = sec(doc, y, '- PERSONNE(S) MISE(S) EN CAUSE -');
     (plainte.misEnCause || []).forEach(function(m) {
       if (m.inconnu) {
@@ -133,16 +147,31 @@ export function exportPlaintePDF(plainte, casiersLies, showNotif) {
     y += 2; y = sep(doc, y);
 
     if (plainte.faits) {
+      y = checkBreak(doc, y, pageRef);
       y = sec(doc, y, '- CIRCONSTANCES ET FAITS -');
-      y = tblock(doc, plainte.faits, y, INK); y += 2; y = sep(doc, y);
+      var fLines = doc.splitTextToSize(plainte.faits, W - 36);
+      setFill(doc, INK); doc.setFont('SpecialElite', 'normal'); doc.setFontSize(9.5);
+      for (var fi = 0; fi < fLines.length; fi++) {
+        y = checkBreak(doc, y, pageRef);
+        doc.text(fLines[fi], 18, y); y += 5.2;
+      }
+      y += 2; y = checkBreak(doc, y, pageRef); y = sep(doc, y);
     }
 
     if (plainte.elementsEnquete) {
+      y = checkBreak(doc, y, pageRef);
       y = sec(doc, y, "- ELEMENTS D'ENQUETE EN COURS -");
-      y = tblock(doc, plainte.elementsEnquete, y, BLUE_INK); y += 2; y = sep(doc, y);
+      var eqLines = doc.splitTextToSize(plainte.elementsEnquete, W - 36);
+      setFill(doc, BLUE_INK); doc.setFont('SpecialElite', 'normal'); doc.setFontSize(9.5);
+      for (var ei = 0; ei < eqLines.length; ei++) {
+        y = checkBreak(doc, y, pageRef);
+        doc.text(eqLines[ei], 18, y); y += 5.2;
+      }
+      y += 2; y = checkBreak(doc, y, pageRef); y = sep(doc, y);
     }
 
     if (casiersLies && casiersLies.length > 0) {
+      y = checkBreak(doc, y, pageRef);
       y = sec(doc, y, '- CASIERS JUDICIAIRES LIES -');
       casiersLies.forEach(function(cas) {
         y = row(doc, 'Nom complet :', cas.nomComplet, y);
@@ -152,6 +181,7 @@ export function exportPlaintePDF(plainte, casiersLies, showNotif) {
       y += 2; y = sep(doc, y);
     }
 
+    y = checkBreak(doc, y, pageRef);
     y = sec(doc, y, '- RESUME ET RECOMMANDATION AU JUGE -');
     var misNoms = (plainte.misEnCause || []).map(function(m) {
       return m.inconnu ? 'Auteur inconnu' : ((m.prenom || '') + ' ' + (m.nom || '')).trim();
@@ -162,13 +192,21 @@ export function exportPlaintePDF(plainte, casiersLies, showNotif) {
     var resume = 'La plainte deposee le ' + (plainte.date || '-') + ' par ' + plaignantsNoms.join(' et ') +
       ' vise ' + misNoms.join(', ') + '. L\'affaire est actuellement ' + statutLabel.toLowerCase() + '. ' +
       'Il est recommande au juge d\'ordonner les diligences necessaires conformement au code penal du Comte de Lemoyne.';
-    y = tblock(doc, resume, y, INK); y += 3;
+    var rLines = doc.splitTextToSize(resume, W - 36);
+    setFill(doc, INK); doc.setFont('SpecialElite', 'normal'); doc.setFontSize(9.5);
+    for (var ri = 0; ri < rLines.length; ri++) {
+      y = checkBreak(doc, y, pageRef);
+      doc.text(rLines[ri], 18, y); y += 5.2;
+    }
+    y += 3;
 
+    var totalPages = (H - y - 10) >= SIG_HEIGHT ? pageRef.current : pageRef.current + 1;
     if ((H - y - 10) >= SIG_HEIGHT) {
-      y = sep(doc, y); drawSignatures(doc, y); footer(doc, 1, 1);
+      y = sep(doc, y); drawSignatures(doc, y); footer(doc, pageRef.current, totalPages);
     } else {
-      footer(doc, 1, 2); doc.addPage(); drawPageBg(doc);
-      y = 30; y = sep(doc, y); drawSignatures(doc, y); footer(doc, 2, 2);
+      footer(doc, pageRef.current, totalPages);
+      doc.addPage(); drawPageBg(doc);
+      var y2 = 30; y2 = sep(doc, y2); drawSignatures(doc, y2); footer(doc, totalPages, totalPages);
     }
 
     var filename = 'Plainte_' + (plaignantsNoms[0] || 'inconnu').replace(/ /g, '_') + '.pdf';
