@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../firebase';
+import { exportGroupePDF } from '../utils/exportGroupePDF';
 import SearchableSelect from './SearchableSelect';
 import {
   collection, getDocs, addDoc, deleteDoc, updateDoc,
@@ -306,6 +307,11 @@ function GroupeDetail({ groupe, enqs, plaintes, agents, onBack, onEdit, onDelete
       <div className="card">
         <div className="card-title" style={{ justifyContent: 'space-between' }}>
           <span>⚔ {groupe.nom}</span>
+          <button
+            className="btn-gold"
+            style={{ fontSize: 12, padding: '6px 14px' }}
+            onClick={() => exportGroupePDF(groupe, enqs, plaintes, citoyensInfo, showNotif)}
+          >📄 Exporter PDF</button>
         </div>
 
         <div className="form-grid" style={{ marginBottom: 16 }}>
