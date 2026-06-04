@@ -82,8 +82,9 @@ function checkBreak(doc, y, pageRef) {
     footer(doc, pageRef.current, '?');
     doc.addPage();
     drawPageBg(doc);
+    addSEFont(doc);
     pageRef.current++;
-    return 30;
+    return 55;
   }
   return y;
 }
