@@ -1,10 +1,10 @@
 import jsPDF from 'jspdf';
 import PAPER_BG from './paperBg';
 
-const INK       = [26,  10,  0];
-const INK_LIGHT = [61,  31,  0];
-const GOLD      = [122, 92,  30];
-const RED       = [139, 0,   0];
+const INK       = [30,  15,  5];
+const INK_LIGHT = [80,  45, 10];
+const GOLD      = [130, 90,  20];
+const RED       = [160,  0,   0];
 const ORANGE    = [204, 136, 0];
 const BLUE_INK  = [26,  58,  110];
 const W = 210;
