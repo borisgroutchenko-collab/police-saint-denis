@@ -182,16 +182,12 @@ function PlainteModal({ plainte, citoyens, agents, groupes, onClose, onSaved, sh
         {/* Agent */}
         <div style={{ marginBottom: 16 }}>
           <label className="field-label">Agent prenant en charge la plainte</label>
-          {agents.length > 0 ? (
-            <select className="field-select" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))}>
-              <option value="">— Sélectionner un agent —</option>
-              {agents.map(a => <option key={a.id} value={`${a.grade} ${a.prenom} ${a.nom}`}>{a.grade} — {a.prenom} {a.nom}</option>)}
-              <option value="__autre__">✍ Saisir manuellement...</option>
-            </select>
-          ) : (
-            <input type="text" className="field-input" placeholder="Ex: Adjoint Morgan" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />
-          )}
-          {agentSaisie && <input type="text" className="field-input" style={{ marginTop: 8 }} placeholder="Nom de l'agent" onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />}
+<SearchableSelect
+            value={form.agent}
+            onChange={v => setForm(f => ({ ...f, agent: v }))}
+            options={agents.map(a => ({ value: `${a.grade || ''} ${a.prenom || ''} ${a.nom || ''}`.trim(), label: (a.grade ? a.grade + ' — ' : '') + (a.prenom || '') + ' ' + (a.nom || '') }))}
+            placeholder="— Sélectionner un agent —"
+          />
         </div>
 
         {/* Plaignants */}
@@ -400,12 +396,12 @@ function VerbalisationModal({ plainte, misIndex, agents, onClose, onDone, showNo
         <div className="form-grid" style={{ marginBottom: 16 }}>
           <div>
             <label className="field-label">Agent verbalisateur</label>
-            {agents.length > 0 ? (
-              <select className="field-select" value={agent} onChange={e => setAgent(e.target.value)}>
-                <option value="">— Sélectionner —</option>
-                {agents.map(a => <option key={a.id} value={`${a.grade} ${a.prenom} ${a.nom}`}>{a.grade} — {a.prenom} {a.nom}</option>)}
-              </select>
-            ) : <input type="text" className="field-input" value={agent} onChange={e => setAgent(e.target.value)} placeholder="Nom de l'agent" />}
+<SearchableSelect
+              value={agent}
+              onChange={v => setAgent(v)}
+              options={agents.map(a => ({ value: `${a.grade || ''} ${a.prenom || ''} ${a.nom || ''}`.trim(), label: (a.grade ? a.grade + ' — ' : '') + (a.prenom || '') + ' ' + (a.nom || '') }))}
+              placeholder="— Sélectionner un agent —"
+            />
           </div>
           <div><label className="field-label">Note</label><input type="text" className="field-input" value={note} onChange={e => setNote(e.target.value)} /></div>
         </div>

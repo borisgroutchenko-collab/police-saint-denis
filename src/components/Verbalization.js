@@ -161,14 +161,12 @@ export default function Verbalization({ showNotif }) {
               ⚠ Aucun citoyen enregistré. Rendez-vous dans l'onglet Citoyens pour en ajouter.
             </div>
           ) : (
-            <select className="field-select" value={citoyenChoisi?.id || ''} onChange={handleCitoyenSelect}>
-              <option value="">— Sélectionner un citoyen enregistré —</option>
-              {citoyens.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.prenom} {c.nom}{c.carteId ? ' — ' + c.carteId : ''}{c.metier ? ' (' + c.metier + ')' : ''}
-                </option>
-              ))}
-            </select>
+<SearchableSelect
+              value={citoyenChoisi?.id || ''}
+              onChange={handleCitoyenSelect}
+              options={citoyens.map(c => ({ value: c.id, label: (c.prenom||'') + ' ' + (c.nom||'') + (c.carteId ? ' — ' + c.carteId : '') + (c.metier ? ' (' + c.metier + ')' : '') }))}
+              placeholder="— Sélectionner un citoyen enregistré —"
+            />
           )}
           {/* Fiche récap du citoyen sélectionné */}
           {citoyenChoisi && (
@@ -202,17 +200,12 @@ export default function Verbalization({ showNotif }) {
           </div>
           <div>
             <label className="field-label">Agent verbalisateur *</label>
-            {agents.length > 0 ? (
-              <select className="field-select" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))}>
-                <option value="">— Sélectionner un agent —</option>
-                {agents.map(a => (
-                  <option key={a.id} value={`${a.grade} ${a.prenom} ${a.nom}`}>
-                    {a.grade} — {a.prenom} {a.nom}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input type="text" className="field-input" placeholder="Ex: Shérif Morgan" value={form.agent} onChange={e => setForm(f => ({ ...f, agent: e.target.value }))} />
+<SearchableSelect
+              value={form.agent}
+              onChange={v => setForm(f => ({ ...f, agent: v }))}
+              options={agents.map(a => ({ value: `${a.grade || ''} ${a.prenom || ''} ${a.nom || ''}`.trim(), label: (a.grade ? a.grade + ' — ' : '') + (a.prenom || '') + ' ' + (a.nom || '') }))}
+              placeholder="— Sélectionner un agent —"
+            />
             )}
           </div>
         </div>
