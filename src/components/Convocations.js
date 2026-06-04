@@ -70,12 +70,12 @@ function ConvocationModal({ convocation, citoyens, agents, onClose, onSaved, sho
         {/* Citoyen */}
         <div style={{ marginBottom: 16 }}>
           <label className="field-label">Citoyen convoqué *</label>
-          <select className="field-select" value={citoyenId} onChange={e => setCitoyenId(e.target.value)}>
-            <option value="">— Sélectionner un citoyen —</option>
-            {citoyens.map(c => (
-              <option key={c.id} value={c.id}>{c.nomComplet}{c.metier ? ' — ' + c.metier : ''}</option>
-            ))}
-          </select>
+<SearchableSelect
+            value={citoyenId}
+            onChange={v => setCitoyenId(v)}
+            options={citoyens.map(c => ({ value: c.id, label: (c.nomComplet || '') + (c.metier ? ' — ' + c.metier : '') }))}
+            placeholder="— Sélectionner un citoyen —"
+          />
         </div>
 
         {/* Récap citoyen */}
