@@ -97,7 +97,6 @@ function GroupeModal({ groupe, citoyens, onClose, onSaved, showNotif }) {
   const [form, setForm] = useState({
     nom:          groupe?.nom          || '',
     territoire:   groupe?.territoire   || '',
-    statut:       groupe?.statut       || 'actif',
     notes:        groupe?.notes        || '',
     pseudonymes:  groupe?.pseudonymes  || '',
     suspicions:   groupe?.suspicions   || '',
@@ -191,14 +190,6 @@ function GroupeModal({ groupe, citoyens, onClose, onSaved, showNotif }) {
           <div>
             <label className="field-label">Territoire connu</label>
             <input type="text" className="field-input" placeholder="Ex: Marais de Lemoyne, Rhodes..." value={form.territoire} onChange={e => setForm(f => ({ ...f, territoire: e.target.value }))} />
-          </div>
-          <div>
-            <label className="field-label">Statut du groupe</label>
-            <select className="field-select" value={form.statut} onChange={e => setForm(f => ({ ...f, statut: e.target.value }))}>
-              <option value="actif">⚔ Actif</option>
-              <option value="disparu">❓ Disparu</option>
-              <option value="neutralise">☠ Neutralisé</option>
-            </select>
           </div>
         </div>
 
@@ -315,12 +306,7 @@ function GroupeDetail({ groupe, enqs, plaintes, agents, onBack, onEdit, onDelete
 
       <div className="card">
         <div className="card-title" style={{ justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <span>⚔ {groupe.nom}</span>
-            {groupe.statut === 'actif'      && <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: '#90ee90', border: '1px solid #90ee90', borderRadius: 2, padding: '2px 8px' }}>⚔ Actif</span>}
-            {groupe.statut === 'disparu'    && <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: '#ffcc44', border: '1px solid #ffcc44', borderRadius: 2, padding: '2px 8px' }}>❓ Disparu</span>}
-            {groupe.statut === 'neutralise' && <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: '#888',    border: '1px solid #888',    borderRadius: 2, padding: '2px 8px' }}>☠ Neutralisé</span>}
-          </div>
+          <span>⚔ {groupe.nom}</span>
           <button
             className="btn-gold"
             style={{ fontSize: 12, padding: '6px 14px' }}
@@ -332,15 +318,6 @@ function GroupeDetail({ groupe, enqs, plaintes, agents, onBack, onEdit, onDelete
           <div>
             <span className="field-label">Territoire connu</span>
             <div style={{ fontSize: 15, color: 'var(--paper)', marginTop: 4 }}>{groupe.territoire || '—'}</div>
-          </div>
-          <div>
-            <span className="field-label">Statut</span>
-            <div style={{ fontSize: 15, color: 'var(--paper)', marginTop: 4 }}>
-              {groupe.statut === 'actif'      ? '⚔ Actif'
-              : groupe.statut === 'disparu'   ? '❓ Disparu'
-              : groupe.statut === 'neutralise' ? '☠ Neutralisé'
-              : '⚔ Actif'}
-            </div>
           </div>
           <div>
             <span className="field-label">Membres</span>
@@ -491,6 +468,7 @@ export default function Groupes({ showNotif }) {
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [filtreStatut, setFiltreStatut] = useState('');
   const [view, setView] = useState('list');
   const [selected, setSelected] = useState(null);
   const [selectedEnqs, setSelectedEnqs] = useState([]);
@@ -569,10 +547,18 @@ export default function Groupes({ showNotif }) {
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
   }
 
-  const filtered = groupes.filter(g =>
-    (g.nom || '').toLowerCase().includes(search.toLowerCase()) ||
-    (g.territoire || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = groupes.filter(g => {
+    const q = search.toLowerCase();
+    const matchSearch = (g.nom || '').toLowerCase().includes(q) || (g.territoire || '').toLowerCase().includes(q);
+    const matchStatut = !filtreStatut || (g.statut || 'actif') === filtreStatut;
+    return matchSearch && matchStatut;
+  });
+
+  const counts = {
+    actif:      groupes.filter(g => (g.statut || 'actif') === 'actif').length,
+    disparu:    groupes.filter(g => g.statut === 'disparu').length,
+    neutralise: groupes.filter(g => g.statut === 'neutralise').length,
+  };
 
   if (view === 'detail' && selected) {
     const current = groupes.find(g => g.id === selected.id) || selected;
@@ -609,24 +595,66 @@ export default function Groupes({ showNotif }) {
           <span>⚔ Groupes & Organisations</span>
           <button className="btn-submit" style={{ padding: '8px 20px', fontSize: 13 }} onClick={() => setModal({})}>➕ Nouveau groupe</button>
         </div>
-        <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
           <input type="text" className="field-input" style={{ flex: 1 }} placeholder="Rechercher par nom ou territoire..." value={search} onChange={e => setSearch(e.target.value)} />
           <button className="btn-gold" onClick={load}>🔄 Actualiser</button>
         </div>
+
+        {/* Filtres statut */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button onClick={() => setFiltreStatut('')} className={!filtreStatut ? 'btn-submit' : 'btn-gold'} style={{ fontSize: 11, padding: '5px 12px' }}>
+            Tous ({groupes.length})
+          </button>
+          {[
+            { key: 'actif',      label: '⚔ Actif',      color: '#90ee90' },
+            { key: 'disparu',    label: '❓ Disparu',    color: '#ffcc44' },
+            { key: 'neutralise', label: '☠ Neutralisé', color: '#888888' },
+          ].map(f => (
+            <button key={f.key}
+              onClick={() => setFiltreStatut(filtreStatut === f.key ? '' : f.key)}
+              style={{
+                fontSize: 11, padding: '5px 12px', borderRadius: 2, cursor: 'pointer',
+                border: '1px solid ' + f.color,
+                background: filtreStatut === f.key ? f.color + '22' : 'transparent',
+                color: f.color, fontFamily: "'Special Elite', cursive", letterSpacing: 1,
+              }}
+            >{f.label} ({counts[f.key] || 0})</button>
+          ))}
+          <span style={{ marginLeft: 'auto', fontFamily: "'Special Elite', cursive", fontSize: 10, color: 'rgba(244,237,216,.35)' }}>
+            {filtered.length} résultat(s)
+          </span>
+        </div>
+
         {loading && <div><span className="spinner" /> Chargement...</div>}
-        {!loading && filtered.length === 0 && <div style={{ color: 'rgba(244,237,216,.4)', fontStyle: 'italic', fontSize: 14 }}>Aucun groupe enregistré.</div>}
+        {!loading && filtered.length === 0 && <div style={{ color: 'rgba(244,237,216,.4)', fontStyle: 'italic', fontSize: 14 }}>Aucun groupe trouvé.</div>}
         {!loading && filtered.length > 0 && (
           <div className="dossier-grid">
-            {filtered.map(g => (
-              <div key={g.id} className="dossier-card" onClick={() => openGroupe(g)}>
-                <div className="dossier-name">⚔ {g.nom}</div>
-                {g.territoire && <div className="dossier-meta">📍 {g.territoire}</div>}
-                <div className="dossier-stats" style={{ marginTop: 8 }}>
-                  <span className="stat-badge">👥 {(g.membres || []).length} membre(s)</span>
+            {filtered.map(g => {
+              const statut = g.statut || 'actif';
+              const statutColor = statut === 'neutralise' ? '#888' : statut === 'disparu' ? '#ffcc44' : '#90ee90';
+              const bordeColor  = statut === 'neutralise' ? 'rgba(136,136,136,.3)' : statut === 'disparu' ? 'rgba(255,204,68,.3)' : '';
+              return (
+                <div key={g.id} className="dossier-card" onClick={() => openGroupe(g)}
+                  style={bordeColor ? { borderColor: bordeColor } : {}}
+                >
+                  <div className="dossier-name" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span>⚔ {g.nom}</span>
+                    <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, letterSpacing: 1,
+                      padding: '1px 7px', borderRadius: 2,
+                      border: '1px solid ' + statutColor, color: statutColor,
+                      background: statutColor + '15',
+                    }}>
+                      {statut === 'actif' ? '⚔ Actif' : statut === 'disparu' ? '❓ Disparu' : '☠ Neutralisé'}
+                    </span>
+                  </div>
+                  {g.territoire && <div className="dossier-meta">📍 {g.territoire}</div>}
+                  <div className="dossier-stats" style={{ marginTop: 8 }}>
+                    <span className="stat-badge">👥 {(g.membres || []).length} membre(s)</span>
+                  </div>
+                  {g.notes && <div style={{ marginTop: 8, fontSize: 12, color: 'rgba(244,237,216,.5)', lineHeight: 1.5 }}>{g.notes.length > 80 ? g.notes.slice(0, 80) + '…' : g.notes}</div>}
                 </div>
-                {g.notes && <div style={{ marginTop: 8, fontSize: 12, color: 'rgba(244,237,216,.5)', lineHeight: 1.5 }}>{g.notes.length > 80 ? g.notes.slice(0, 80) + '…' : g.notes}</div>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
