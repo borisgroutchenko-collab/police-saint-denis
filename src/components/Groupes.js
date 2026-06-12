@@ -97,6 +97,7 @@ function GroupeModal({ groupe, citoyens, onClose, onSaved, showNotif }) {
   const [form, setForm] = useState({
     nom:          groupe?.nom          || '',
     territoire:   groupe?.territoire   || '',
+    statut:       groupe?.statut       || 'actif',
     notes:        groupe?.notes        || '',
     pseudonymes:  groupe?.pseudonymes  || '',
     suspicions:   groupe?.suspicions   || '',
@@ -190,6 +191,14 @@ function GroupeModal({ groupe, citoyens, onClose, onSaved, showNotif }) {
           <div>
             <label className="field-label">Territoire connu</label>
             <input type="text" className="field-input" placeholder="Ex: Marais de Lemoyne, Rhodes..." value={form.territoire} onChange={e => setForm(f => ({ ...f, territoire: e.target.value }))} />
+          </div>
+          <div>
+            <label className="field-label">Statut du groupe</label>
+            <select className="field-select" value={form.statut} onChange={e => setForm(f => ({ ...f, statut: e.target.value }))}>
+              <option value="actif">⚔ Actif</option>
+              <option value="disparu">❓ Disparu</option>
+              <option value="neutralise">☠ Neutralisé</option>
+            </select>
           </div>
         </div>
 
@@ -306,7 +315,12 @@ function GroupeDetail({ groupe, enqs, plaintes, agents, onBack, onEdit, onDelete
 
       <div className="card">
         <div className="card-title" style={{ justifyContent: 'space-between' }}>
-          <span>⚔ {groupe.nom}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span>⚔ {groupe.nom}</span>
+            {groupe.statut === 'actif'      && <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: '#90ee90', border: '1px solid #90ee90', borderRadius: 2, padding: '2px 8px' }}>⚔ Actif</span>}
+            {groupe.statut === 'disparu'    && <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: '#ffcc44', border: '1px solid #ffcc44', borderRadius: 2, padding: '2px 8px' }}>❓ Disparu</span>}
+            {groupe.statut === 'neutralise' && <span style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: '#888',    border: '1px solid #888',    borderRadius: 2, padding: '2px 8px' }}>☠ Neutralisé</span>}
+          </div>
           <button
             className="btn-gold"
             style={{ fontSize: 12, padding: '6px 14px' }}
@@ -318,6 +332,15 @@ function GroupeDetail({ groupe, enqs, plaintes, agents, onBack, onEdit, onDelete
           <div>
             <span className="field-label">Territoire connu</span>
             <div style={{ fontSize: 15, color: 'var(--paper)', marginTop: 4 }}>{groupe.territoire || '—'}</div>
+          </div>
+          <div>
+            <span className="field-label">Statut</span>
+            <div style={{ fontSize: 15, color: 'var(--paper)', marginTop: 4 }}>
+              {groupe.statut === 'actif'      ? '⚔ Actif'
+              : groupe.statut === 'disparu'   ? '❓ Disparu'
+              : groupe.statut === 'neutralise' ? '☠ Neutralisé'
+              : '⚔ Actif'}
+            </div>
           </div>
           <div>
             <span className="field-label">Membres</span>
