@@ -14,11 +14,7 @@ const COULEURS = [
   { key: 'vert',   hex: '#27ae60', label: 'Vert' },
   { key: 'bleu',   hex: '#2980b9', label: 'Bleu' },
 ];
-
-function hexOf(key) {
-  const c = COULEURS.find(c => c.key === key);
-  return c ? c.hex : '#c0392b';
-}
+function hexOf(key) { const c = COULEURS.find(c => c.key === key); return c ? c.hex : '#c0392b'; }
 
 const TAILLES = [
   { key: 'pt', label: 'Petit',  px: 11 },
@@ -26,9 +22,24 @@ const TAILLES = [
   { key: 'gd', label: 'Grand',  px: 24 },
   { key: 'xl', label: 'Énorme', px: 36 },
 ];
-function pxOf(key) {
-  const t = TAILLES.find(t => t.key === key);
-  return t ? t.px : 16;
+function pxOf(key) { const t = TAILLES.find(t => t.key === key); return t ? t.px : 16; }
+
+const EPAISSEURS = [
+  { key: 'fin',   label: 'Fin',   w: 0.25 },
+  { key: 'moyen', label: 'Moyen', w: 0.5 },
+  { key: 'epais', label: 'Épais', w: 1 },
+  { key: 'gros',  label: 'Gros',  w: 2 },
+];
+function wOf(key) { const e = EPAISSEURS.find(e => e.key === key); return e ? e.w : 0.5; }
+
+// Distance d'un point à un segment (en % de la carte)
+function distToSegment(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  let t = len2 ? ((px - ax) * dx + (py - ay) * dy) / len2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  const cx = ax + t * dx, cy = ay + t * dy;
+  return Math.hypot(px - cx, py - cy);
 }
 
 export default function Carte({ showNotif }) {
@@ -37,21 +48,32 @@ export default function Carte({ showNotif }) {
   const [dragging, setDragging] = useState(false);
   const dragStart = useRef(null);
   const containerRef = useRef(null);
+  const imgRef = useRef(null);
 
   const [balises, setBalises] = useState([]);
-  const [mode, setMode] = useState('move'); // 'move' | 'place' | 'text'
+  const [dessins, setDessins] = useState([]);
+  const [mode, setMode] = useState('move'); // move | place | text | trait | zone | erase
   const [couleur, setCouleur] = useState('rouge');
   const [taille, setTaille] = useState('mn');
+  const [epaisseur, setEpaisseur] = useState('moyen');
   const [filtreCouleur, setFiltreCouleur] = useState('');
-  const [pendingPoint, setPendingPoint] = useState(null); // { xPct, yPct, type }
+  const [pendingPoint, setPendingPoint] = useState(null);
   const [titreInput, setTitreInput] = useState('');
   const [editItem, setEditItem] = useState(null);
 
+  // Dessin en cours
+  const [currentPath, setCurrentPath] = useState(null); // { points: [{x,y}], couleur, epaisseur, type }
+  const isDrawing = useRef(false);
+
   const load = useCallback(async () => {
     try {
-      const snap = await getDocs(collection(db, 'balises'));
-      setBalises(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    } catch (e) { if (showNotif) showNotif('Erreur chargement balises', true); }
+      const [bSnap, dSnap] = await Promise.all([
+        getDocs(collection(db, 'balises')),
+        getDocs(collection(db, 'dessins')),
+      ]);
+      setBalises(bSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setDessins(dSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (e) { if (showNotif) showNotif('Erreur chargement carte', true); }
   }, [showNotif]);
 
   useEffect(() => { load(); }, [load]);
@@ -62,29 +84,85 @@ export default function Carte({ showNotif }) {
     setZoom(z => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(z + delta).toFixed(2))));
   }
 
+  // Convertit la position souris en coordonnées % de la carte
+  function getPct(e) {
+    const rect = imgRef.current.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * 100,
+      y: ((e.clientY - rect.top) / rect.height) * 100,
+    };
+  }
+
   function handleMouseDown(e) {
     if (e.button !== 0) return;
     if (mode === 'move') {
       setDragging(true);
       dragStart.current = { mx: e.clientX, my: e.clientY, px: pos.x, py: pos.y };
+    } else if (mode === 'trait' || mode === 'zone') {
+      isDrawing.current = true;
+      const p = getPct(e);
+      setCurrentPath({ points: [p], couleur, epaisseur, type: mode });
+    } else if (mode === 'erase') {
+      eraseAt(e);
     }
   }
 
   function handleMouseMove(e) {
-    if (!dragging || !dragStart.current) return;
-    const dx = e.clientX - dragStart.current.mx;
-    const dy = e.clientY - dragStart.current.my;
-    setPos({ x: dragStart.current.px + dx, y: dragStart.current.py + dy });
+    if (dragging && dragStart.current) {
+      const dx = e.clientX - dragStart.current.mx;
+      const dy = e.clientY - dragStart.current.my;
+      setPos({ x: dragStart.current.px + dx, y: dragStart.current.py + dy });
+    } else if (isDrawing.current && (mode === 'trait' || mode === 'zone')) {
+      const p = getPct(e);
+      setCurrentPath(cp => cp ? { ...cp, points: [...cp.points, p] } : cp);
+    } else if (mode === 'erase' && e.buttons === 1) {
+      eraseAt(e);
+    }
   }
 
-  function handleMouseUp() { setDragging(false); }
+  async function handleMouseUp() {
+    setDragging(false);
+    if (isDrawing.current && currentPath && currentPath.points.length > 1) {
+      const data = {
+        type: currentPath.type,
+        points: currentPath.points,
+        couleur: currentPath.couleur,
+        epaisseur: currentPath.epaisseur,
+        createdAt: serverTimestamp(),
+      };
+      try {
+        const ref = await addDoc(collection(db, 'dessins'), data);
+        setDessins(d => [...d, { id: ref.id, ...data }]);
+      } catch (e) { if (showNotif) showNotif('Erreur enregistrement dessin', true); }
+    }
+    isDrawing.current = false;
+    setCurrentPath(null);
+  }
+
+  // Gomme : supprime le dessin le plus proche du curseur
+  async function eraseAt(e) {
+    const p = getPct(e);
+    const SEUIL = 1.5; // % de tolérance
+    let toDelete = null;
+    for (const d of dessins) {
+      const pts = d.points || [];
+      for (let i = 0; i < pts.length - 1; i++) {
+        if (distToSegment(p.x, p.y, pts[i].x, pts[i].y, pts[i+1].x, pts[i+1].y) < SEUIL) {
+          toDelete = d; break;
+        }
+      }
+      if (toDelete) break;
+    }
+    if (toDelete) {
+      setDessins(ds => ds.filter(x => x.id !== toDelete.id));
+      try { await deleteDoc(doc(db, 'dessins', toDelete.id)); } catch (_) {}
+    }
+  }
 
   function handleImageClick(e) {
     if (mode !== 'place' && mode !== 'text') return;
-    const rect = e.target.getBoundingClientRect();
-    const xPct = ((e.clientX - rect.left) / rect.width) * 100;
-    const yPct = ((e.clientY - rect.top) / rect.height) * 100;
-    setPendingPoint({ xPct, yPct, type: mode === 'text' ? 'texte' : 'balise' });
+    const p = getPct(e);
+    setPendingPoint({ xPct: p.x, yPct: p.y, type: mode === 'text' ? 'texte' : 'balise' });
     setTitreInput('');
   }
 
@@ -94,27 +172,19 @@ export default function Carte({ showNotif }) {
       const data = {
         type: pendingPoint.type,
         titre: titreInput.trim() || (pendingPoint.type === 'texte' ? 'Texte' : 'Sans titre'),
-        couleur,
-        xPct: pendingPoint.xPct,
-        yPct: pendingPoint.yPct,
-        createdAt: serverTimestamp(),
+        couleur, xPct: pendingPoint.xPct, yPct: pendingPoint.yPct, createdAt: serverTimestamp(),
       };
       if (pendingPoint.type === 'texte') data.taille = taille;
       const ref = await addDoc(collection(db, 'balises'), data);
       setBalises(b => [...b, { id: ref.id, ...data }]);
-      setPendingPoint(null);
-      setTitreInput('');
-      setMode('move');
+      setPendingPoint(null); setTitreInput(''); setMode('move');
       if (showNotif) showNotif(pendingPoint.type === 'texte' ? 'Texte ajouté' : 'Balise placée');
     } catch (e) { if (showNotif) showNotif('Erreur : ' + e.message, true); }
   }
 
   async function deleteItem(id) {
-    try {
-      await deleteDoc(doc(db, 'balises', id));
-      setBalises(b => b.filter(x => x.id !== id));
-      if (showNotif) showNotif('Supprimé');
-    } catch (e) { if (showNotif) showNotif('Erreur suppression', true); }
+    try { await deleteDoc(doc(db, 'balises', id)); setBalises(b => b.filter(x => x.id !== id)); if (showNotif) showNotif('Supprimé'); }
+    catch (e) { if (showNotif) showNotif('Erreur suppression', true); }
   }
 
   async function saveEdit() {
@@ -124,9 +194,16 @@ export default function Carte({ showNotif }) {
       if (editItem.type === 'texte') upd.taille = editItem.taille;
       await updateDoc(doc(db, 'balises', editItem.id), upd);
       setBalises(b => b.map(x => x.id === editItem.id ? { ...x, ...upd } : x));
-      setEditItem(null);
-      if (showNotif) showNotif('Modifié');
+      setEditItem(null); if (showNotif) showNotif('Modifié');
     } catch (e) { if (showNotif) showNotif('Erreur modification', true); }
+  }
+
+  async function clearDessins() {
+    if (!dessins.length) return;
+    const copy = [...dessins];
+    setDessins([]);
+    for (const d of copy) { try { await deleteDoc(doc(db, 'dessins', d.id)); } catch (_) {} }
+    if (showNotif) showNotif('Dessins effacés');
   }
 
   function zoomIn()  { setZoom(z => Math.min(ZOOM_MAX, +(z + ZOOM_STEP * 2).toFixed(2))); }
@@ -134,14 +211,17 @@ export default function Carte({ showNotif }) {
   function reset()   { setZoom(0.5); setPos({ x: 0, y: 0 }); }
 
   const filtered = filtreCouleur ? balises.filter(b => b.couleur === filtreCouleur) : balises;
+  const filteredDessins = filtreCouleur ? dessins.filter(d => d.couleur === filtreCouleur) : dessins;
 
-  const btnStyle = {
-    width: 36, height: 36, borderRadius: 3,
-    border: '1px solid rgba(201,168,76,.5)', background: 'rgba(26,14,4,.85)',
-    color: 'var(--gold)', fontSize: 20, cursor: 'pointer',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontFamily: "'Special Elite', cursive",
-  };
+  function pointsToPath(points, close) {
+    if (!points || !points.length) return '';
+    let d = 'M ' + points[0].x + ' ' + points[0].y;
+    for (let i = 1; i < points.length; i++) d += ' L ' + points[i].x + ' ' + points[i].y;
+    if (close) d += ' Z';
+    return d;
+  }
+
+  const btnStyle = { width: 36, height: 36, borderRadius: 3, border: '1px solid rgba(201,168,76,.5)', background: 'rgba(26,14,4,.85)', color: 'var(--gold)', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Special Elite', cursive" };
 
   function modeBtn(key, label, activeColor) {
     const active = mode === key;
@@ -149,11 +229,12 @@ export default function Carte({ showNotif }) {
       <button onClick={() => { setMode(key); setPendingPoint(null); }}
         style={{ flex: 1, fontSize: 11, padding: '7px', borderRadius: 2, cursor: 'pointer', fontFamily: "'Special Elite', cursive",
           border: '1px solid ' + (active ? activeColor : 'rgba(201,168,76,.3)'),
-          background: active ? activeColor + '33' : 'transparent', color: active ? activeColor : 'rgba(244,237,216,.6)' }}>
-        {label}
-      </button>
+          background: active ? activeColor + '33' : 'transparent', color: active ? activeColor : 'rgba(244,237,216,.6)' }}>{label}</button>
     );
   }
+
+  const drawingMode = mode === 'trait' || mode === 'zone' || mode === 'erase';
+  const cursor = mode === 'erase' ? 'cell' : drawingMode ? 'crosshair' : (mode === 'place' || mode === 'text') ? 'crosshair' : (dragging ? 'grabbing' : 'grab');
 
   return (
     <div style={{ display: 'flex', gap: 0, height: 'calc(100vh - 140px)' }}>
@@ -162,13 +243,17 @@ export default function Carte({ showNotif }) {
       <div style={{ width: 260, flexShrink: 0, background: 'rgba(20,12,4,.6)', border: '1px solid rgba(201,168,76,.2)', borderRadius: '4px 0 0 4px', overflowY: 'auto', padding: 14 }}>
         <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 13, color: 'var(--gold)', letterSpacing: 1, marginBottom: 12, textAlign: 'center' }}>✚ OUTILS CARTE ✚</div>
 
-        {/* Modes */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
           {modeBtn('move', '✋ Déplacer', '#c9a84c')}
           {modeBtn('place', '📍 Balise', '#c0392b')}
         </div>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+          {modeBtn('text', '🅰 Texte', '#2980b9')}
+          {modeBtn('trait', '✏ Trait', '#27ae60')}
+        </div>
         <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-          {modeBtn('text', '🅰 Inscription texte', '#2980b9')}
+          {modeBtn('zone', '⬠ Zone', '#9b59b6')}
+          {modeBtn('erase', '🧽 Gomme', '#e67e22')}
         </div>
 
         {/* Couleur */}
@@ -180,6 +265,20 @@ export default function Carte({ showNotif }) {
                 style={{ width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', background: c.hex,
                   border: couleur === c.key ? '2px solid #fff' : '2px solid rgba(0,0,0,.3)',
                   boxShadow: couleur === c.key ? '0 0 6px ' + c.hex : 'none' }} />
+            ))}
+          </div>
+        </div>
+
+        {/* Épaisseur trait */}
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, color: 'rgba(244,237,216,.5)', letterSpacing: 1, marginBottom: 6 }}>ÉPAISSEUR TRAIT</div>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {EPAISSEURS.map(t => (
+              <button key={t.key} onClick={() => setEpaisseur(t.key)}
+                style={{ fontSize: 10, padding: '4px 8px', borderRadius: 2, cursor: 'pointer', fontFamily: "'Special Elite', cursive",
+                  border: '1px solid ' + (epaisseur === t.key ? 'var(--gold)' : 'rgba(201,168,76,.3)'),
+                  background: epaisseur === t.key ? 'rgba(201,168,76,.2)' : 'transparent',
+                  color: epaisseur === t.key ? 'var(--gold)' : 'rgba(244,237,216,.5)' }}>{t.label}</button>
             ))}
           </div>
         </div>
@@ -199,8 +298,8 @@ export default function Carte({ showNotif }) {
         </div>
 
         {/* Filtre */}
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, color: 'rgba(244,237,216,.5)', letterSpacing: 1, marginBottom: 6 }}>FILTRE</div>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, color: 'rgba(244,237,216,.5)', letterSpacing: 1, marginBottom: 6 }}>FILTRE COULEUR</div>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
             <button onClick={() => setFiltreCouleur('')}
               style={{ fontSize: 9, padding: '3px 8px', borderRadius: 2, cursor: 'pointer', fontFamily: "'Special Elite', cursive",
@@ -214,7 +313,16 @@ export default function Carte({ showNotif }) {
           </div>
         </div>
 
-        {/* Liste */}
+        {/* Effacer tous les dessins */}
+        {dessins.length > 0 && (
+          <button onClick={clearDessins}
+            style={{ width: '100%', fontSize: 10, padding: '6px', marginBottom: 12, borderRadius: 2, cursor: 'pointer', fontFamily: "'Special Elite', cursive",
+              border: '1px solid rgba(230,126,34,.5)', background: 'rgba(230,126,34,.12)', color: '#e67e22', letterSpacing: 1 }}>
+            🧽 Effacer tous les dessins ({dessins.length})
+          </button>
+        )}
+
+        {/* Liste marquages */}
         <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'var(--gold)', letterSpacing: 1, marginBottom: 8, textAlign: 'center', borderTop: '1px solid rgba(201,168,76,.2)', paddingTop: 10 }}>
           ✚ MARQUAGES ({filtered.length}) ✚
         </div>
@@ -271,10 +379,10 @@ export default function Carte({ showNotif }) {
         </div>
 
         <div style={{ position: 'absolute', bottom: 12, left: 12, zIndex: 20, fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'rgba(201,168,76,.8)', background: 'rgba(26,14,4,.65)', padding: '3px 10px', borderRadius: 2, border: '1px solid rgba(201,168,76,.25)', pointerEvents: 'none' }}>
-          🗺 {Math.round(zoom * 100)}% {mode === 'place' ? '— Cliquez pour poser une balise' : mode === 'text' ? '— Cliquez pour inscrire du texte' : ''}
+          🗺 {Math.round(zoom * 100)}%
+          {mode === 'place' ? ' — Cliquez pour poser une balise' : mode === 'text' ? ' — Cliquez pour inscrire du texte' : mode === 'trait' ? ' — Maintenez et glissez pour tracer' : mode === 'zone' ? ' — Maintenez et glissez pour dessiner une zone' : mode === 'erase' ? ' — Cliquez sur un dessin pour le gommer' : ''}
         </div>
 
-        {/* Modal */}
         {pendingPoint && (
           <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 30, background: 'rgba(20,12,4,.97)', border: '1px solid rgba(201,168,76,.5)', borderRadius: 4, padding: 18, width: 290, boxShadow: '0 10px 40px rgba(0,0,0,.7)' }}>
             <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 12, color: 'var(--gold)', letterSpacing: 1, marginBottom: 12 }}>
@@ -308,17 +416,31 @@ export default function Carte({ showNotif }) {
           </div>
         )}
 
-        {/* Carte */}
         <div ref={containerRef} onWheel={handleWheel} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
-          style={{ width: '100%', height: '100%', overflow: 'hidden', cursor: (mode === 'place' || mode === 'text') ? 'crosshair' : (dragging ? 'grabbing' : 'grab'), background: '#d4b896', display: 'flex', alignItems: 'center', justifyContent: 'center', userSelect: 'none' }}>
+          style={{ width: '100%', height: '100%', overflow: 'hidden', cursor, background: '#d4b896', display: 'flex', alignItems: 'center', justifyContent: 'center', userSelect: 'none' }}>
           <div style={{ position: 'relative', transform: `translate(${pos.x}px, ${pos.y}px) scale(${zoom})`, transformOrigin: 'center center', transition: dragging ? 'none' : 'transform 0.08s ease' }}>
-            <img src={process.env.PUBLIC_URL + '/map.jpg'} alt="Carte du comté de Lemoyne" draggable={false} onClick={handleImageClick} style={{ maxWidth: 'none', display: 'block' }} />
+            <img ref={imgRef} src={process.env.PUBLIC_URL + '/map.jpg'} alt="Carte du comté de Lemoyne" draggable={false} onClick={handleImageClick} style={{ maxWidth: 'none', display: 'block' }} />
+
+            {/* Couche SVG des dessins */}
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 4 }}>
+              {filteredDessins.map(d => d.type === 'zone' ? (
+                <path key={d.id} d={pointsToPath(d.points, true)} fill={hexOf(d.couleur) + '40'} stroke={hexOf(d.couleur)} strokeWidth={wOf(d.epaisseur)} strokeLinejoin="round" />
+              ) : (
+                <path key={d.id} d={pointsToPath(d.points, false)} fill="none" stroke={hexOf(d.couleur)} strokeWidth={wOf(d.epaisseur)} strokeLinecap="round" strokeLinejoin="round" />
+              ))}
+              {/* Dessin en cours */}
+              {currentPath && (currentPath.type === 'zone' ? (
+                <path d={pointsToPath(currentPath.points, true)} fill={hexOf(currentPath.couleur) + '33'} stroke={hexOf(currentPath.couleur)} strokeWidth={wOf(currentPath.epaisseur)} strokeDasharray="1 1" />
+              ) : (
+                <path d={pointsToPath(currentPath.points, false)} fill="none" stroke={hexOf(currentPath.couleur)} strokeWidth={wOf(currentPath.epaisseur)} strokeLinecap="round" strokeLinejoin="round" />
+              ))}
+            </svg>
+
+            {/* Marquages */}
             {filtered.map(b => b.type === 'texte' ? (
               <div key={b.id} style={{ position: 'absolute', left: b.xPct + '%', top: b.yPct + '%', transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 5,
                 fontFamily: "'Special Elite', cursive", fontSize: pxOf(b.taille), color: hexOf(b.couleur), fontWeight: 'bold',
-                textShadow: '0 1px 2px rgba(255,255,255,.7), 0 0 3px rgba(255,255,255,.5)', whiteSpace: 'nowrap', letterSpacing: 1 }}>
-                {b.titre}
-              </div>
+                textShadow: '0 1px 2px rgba(255,255,255,.7), 0 0 3px rgba(255,255,255,.5)', whiteSpace: 'nowrap', letterSpacing: 1 }}>{b.titre}</div>
             ) : (
               <div key={b.id} style={{ position: 'absolute', left: b.xPct + '%', top: b.yPct + '%', transform: 'translate(-50%, -100%)', pointerEvents: 'none', zIndex: 5 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -326,9 +448,7 @@ export default function Carte({ showNotif }) {
                     <path d="M11 0 C5 0 0 5 0 11 C0 19 11 30 11 30 C11 30 22 19 22 11 C22 5 17 0 11 0 Z" fill={hexOf(b.couleur)} stroke="#000" strokeWidth="0.5" />
                     <circle cx="11" cy="11" r="4" fill="rgba(0,0,0,.4)" />
                   </svg>
-                  <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 9, color: '#1a0a00', background: 'rgba(255,255,255,.85)', padding: '1px 5px', borderRadius: 2, marginTop: -2, whiteSpace: 'nowrap', border: '1px solid ' + hexOf(b.couleur) }}>
-                    {b.titre}
-                  </div>
+                  <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 9, color: '#1a0a00', background: 'rgba(255,255,255,.85)', padding: '1px 5px', borderRadius: 2, marginTop: -2, whiteSpace: 'nowrap', border: '1px solid ' + hexOf(b.couleur) }}>{b.titre}</div>
                 </div>
               </div>
             ))}
