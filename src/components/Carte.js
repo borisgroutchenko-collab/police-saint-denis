@@ -25,22 +25,20 @@ const TAILLES = [
 function pxOf(key) { const t = TAILLES.find(t => t.key === key); return t ? t.px : 16; }
 
 const EPAISSEURS = [
-  { key: 'fin',   label: 'Fin',   w: 0.25 },
-  { key: 'moyen', label: 'Moyen', w: 0.5 },
-  { key: 'epais', label: 'Épais', w: 1 },
-  { key: 'gros',  label: 'Gros',  w: 2 },
+  { key: 'fin',   label: 'Fin',   w: 0.12 },
+  { key: 'moyen', label: 'Moyen', w: 0.25 },
+  { key: 'epais', label: 'Épais', w: 0.5 },
 ];
-function wOf(key) { const e = EPAISSEURS.find(e => e.key === key); return e ? e.w : 0.5; }
+function wOf(key) { const e = EPAISSEURS.find(e => e.key === key); return e ? e.w : 0.25; }
 
-// Distance d'un point à un segment (en % de la carte)
-function distToSegment(px, py, ax, ay, bx, by) {
-  const dx = bx - ax, dy = by - ay;
-  const len2 = dx * dx + dy * dy;
-  let t = len2 ? ((px - ax) * dx + (py - ay) * dy) / len2 : 0;
-  t = Math.max(0, Math.min(1, t));
-  const cx = ax + t * dx, cy = ay + t * dy;
-  return Math.hypot(px - cx, py - cy);
-}
+const GOMMES = [
+  { key: 'petit', label: 'Petite', r: 1 },
+  { key: 'moyen', label: 'Moyenne', r: 2 },
+  { key: 'grand', label: 'Grande', r: 3.5 },
+];
+function rOf(key) { const g = GOMMES.find(g => g.key === key); return g ? g.r : 2; }
+
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 
 export default function Carte({ showNotif }) {
   const [zoom, setZoom] = useState(0.5);
@@ -52,18 +50,23 @@ export default function Carte({ showNotif }) {
 
   const [balises, setBalises] = useState([]);
   const [dessins, setDessins] = useState([]);
+  const dessinsRef = useRef([]);
+  useEffect(() => { dessinsRef.current = dessins; }, [dessins]);
+
   const [mode, setMode] = useState('move'); // move | place | text | trait | zone | erase
   const [couleur, setCouleur] = useState('rouge');
   const [taille, setTaille] = useState('mn');
   const [epaisseur, setEpaisseur] = useState('moyen');
+  const [gomme, setGomme] = useState('moyen');
   const [filtreCouleur, setFiltreCouleur] = useState('');
   const [pendingPoint, setPendingPoint] = useState(null);
   const [titreInput, setTitreInput] = useState('');
   const [editItem, setEditItem] = useState(null);
 
-  // Dessin en cours
-  const [currentPath, setCurrentPath] = useState(null); // { points: [{x,y}], couleur, epaisseur, type }
+  const [currentPath, setCurrentPath] = useState(null); // trait en cours (drag)
+  const [zonePoints, setZonePoints] = useState([]);       // zone en construction (clics)
   const isDrawing = useRef(false);
+  const pendingDelete = useRef(new Set());
 
   const load = useCallback(async () => {
     try {
@@ -84,7 +87,6 @@ export default function Carte({ showNotif }) {
     setZoom(z => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(z + delta).toFixed(2))));
   }
 
-  // Convertit la position souris en coordonnées % de la carte
   function getPct(e) {
     const rect = imgRef.current.getBoundingClientRect();
     return {
@@ -98,10 +100,9 @@ export default function Carte({ showNotif }) {
     if (mode === 'move') {
       setDragging(true);
       dragStart.current = { mx: e.clientX, my: e.clientY, px: pos.x, py: pos.y };
-    } else if (mode === 'trait' || mode === 'zone') {
+    } else if (mode === 'trait') {
       isDrawing.current = true;
-      const p = getPct(e);
-      setCurrentPath({ points: [p], couleur, epaisseur, type: mode });
+      setCurrentPath({ points: [getPct(e)], couleur, epaisseur, type: 'trait' });
     } else if (mode === 'erase') {
       eraseAt(e);
     }
@@ -112,7 +113,7 @@ export default function Carte({ showNotif }) {
       const dx = e.clientX - dragStart.current.mx;
       const dy = e.clientY - dragStart.current.my;
       setPos({ x: dragStart.current.px + dx, y: dragStart.current.py + dy });
-    } else if (isDrawing.current && (mode === 'trait' || mode === 'zone')) {
+    } else if (isDrawing.current && mode === 'trait') {
       const p = getPct(e);
       setCurrentPath(cp => cp ? { ...cp, points: [...cp.points, p] } : cp);
     } else if (mode === 'erase' && e.buttons === 1) {
@@ -122,58 +123,104 @@ export default function Carte({ showNotif }) {
 
   async function handleMouseUp() {
     setDragging(false);
+    // Fin d'un trait
     if (isDrawing.current && currentPath && currentPath.points.length > 1) {
-      const data = {
-        type: currentPath.type,
-        points: currentPath.points,
-        couleur: currentPath.couleur,
-        epaisseur: currentPath.epaisseur,
-        createdAt: serverTimestamp(),
-      };
+      const data = { type: 'trait', points: currentPath.points, couleur: currentPath.couleur, epaisseur: currentPath.epaisseur, createdAt: serverTimestamp() };
       try {
         const ref = await addDoc(collection(db, 'dessins'), data);
         setDessins(d => [...d, { id: ref.id, ...data }]);
-      } catch (e) { if (showNotif) showNotif('Erreur enregistrement dessin', true); }
+      } catch (e) { if (showNotif) showNotif('Erreur enregistrement trait', true); }
     }
     isDrawing.current = false;
     setCurrentPath(null);
+    // Fin d'une session de gomme → commit
+    if (mode === 'erase' && pendingDelete.current.size > 0) {
+      await commitErase();
+    }
   }
 
-  // Gomme : supprime le dessin le plus proche du curseur
-  async function eraseAt(e) {
-    const p = getPct(e);
-    const SEUIL = 1.5; // % de tolérance
-    let toDelete = null;
-    for (const d of dessins) {
-      const pts = d.points || [];
-      for (let i = 0; i < pts.length - 1; i++) {
-        if (distToSegment(p.x, p.y, pts[i].x, pts[i].y, pts[i+1].x, pts[i+1].y) < SEUIL) {
-          toDelete = d; break;
+  // ─── GOMME : efface seulement ce qui passe dessous ───
+  function splitByEraser(points, center, r) {
+    const segs = [];
+    let cur = [];
+    for (const pt of points) {
+      if (dist(pt, center) < r) {
+        if (cur.length) { segs.push(cur); cur = []; }
+      } else {
+        cur.push(pt);
+      }
+    }
+    if (cur.length) segs.push(cur);
+    return segs;
+  }
+
+  function eraseAt(e) {
+    const center = getPct(e);
+    const r = rOf(gomme);
+    setDessins(prev => {
+      const out = [];
+      for (const d of prev) {
+        const segs = splitByEraser(d.points || [], center, r);
+        if (segs.length === 1 && segs[0].length === (d.points || []).length) {
+          out.push(d); // intact
+          continue;
+        }
+        const origId = d._origId || d.id;
+        if (origId) pendingDelete.current.add(origId);
+        for (const s of segs) {
+          if (s.length >= 2) out.push({ ...d, id: undefined, _origId: origId, points: s });
         }
       }
-      if (toDelete) break;
-    }
-    if (toDelete) {
-      setDessins(ds => ds.filter(x => x.id !== toDelete.id));
-      try { await deleteDoc(doc(db, 'dessins', toDelete.id)); } catch (_) {}
+      return out;
+    });
+  }
+
+  async function commitErase() {
+    const toDelete = [...pendingDelete.current];
+    pendingDelete.current.clear();
+    for (const id of toDelete) { try { await deleteDoc(doc(db, 'dessins', id)); } catch (_) {} }
+    const segments = dessinsRef.current.filter(d => d._origId && !d.id);
+    for (const seg of segments) {
+      const data = { type: seg.type, points: seg.points, couleur: seg.couleur, epaisseur: seg.epaisseur, createdAt: serverTimestamp() };
+      try {
+        const ref = await addDoc(collection(db, 'dessins'), data);
+        setDessins(prev => prev.map(d => d === seg ? { ...d, id: ref.id, _origId: undefined } : d));
+      } catch (_) {}
     }
   }
 
+  // ─── ZONE point par point ───
   function handleImageClick(e) {
-    if (mode !== 'place' && mode !== 'text') return;
-    const p = getPct(e);
-    setPendingPoint({ xPct: p.x, yPct: p.y, type: mode === 'text' ? 'texte' : 'balise' });
-    setTitreInput('');
+    if (mode === 'place' || mode === 'text') {
+      const p = getPct(e);
+      setPendingPoint({ xPct: p.x, yPct: p.y, type: mode === 'text' ? 'texte' : 'balise' });
+      setTitreInput('');
+    } else if (mode === 'zone') {
+      const p = getPct(e);
+      if (zonePoints.length >= 3 && dist(p, zonePoints[0]) < 2) {
+        finishZone();
+      } else {
+        setZonePoints(zp => [...zp, p]);
+      }
+    }
   }
+
+  async function finishZone() {
+    if (zonePoints.length < 3) return;
+    const data = { type: 'zone', points: zonePoints, couleur, epaisseur, createdAt: serverTimestamp() };
+    try {
+      const ref = await addDoc(collection(db, 'dessins'), data);
+      setDessins(d => [...d, { id: ref.id, ...data }]);
+      if (showNotif) showNotif('Zone créée');
+    } catch (e) { if (showNotif) showNotif('Erreur zone', true); }
+    setZonePoints([]);
+  }
+  function cancelZone() { setZonePoints([]); }
 
   async function confirmItem() {
     if (!pendingPoint) return;
     try {
-      const data = {
-        type: pendingPoint.type,
-        titre: titreInput.trim() || (pendingPoint.type === 'texte' ? 'Texte' : 'Sans titre'),
-        couleur, xPct: pendingPoint.xPct, yPct: pendingPoint.yPct, createdAt: serverTimestamp(),
-      };
+      const data = { type: pendingPoint.type, titre: titreInput.trim() || (pendingPoint.type === 'texte' ? 'Texte' : 'Sans titre'), couleur, xPct: pendingPoint.xPct, yPct: pendingPoint.yPct, createdAt: serverTimestamp() };
       if (pendingPoint.type === 'texte') data.taille = taille;
       const ref = await addDoc(collection(db, 'balises'), data);
       setBalises(b => [...b, { id: ref.id, ...data }]);
@@ -202,7 +249,7 @@ export default function Carte({ showNotif }) {
     if (!dessins.length) return;
     const copy = [...dessins];
     setDessins([]);
-    for (const d of copy) { try { await deleteDoc(doc(db, 'dessins', d.id)); } catch (_) {} }
+    for (const d of copy) { if (d.id) { try { await deleteDoc(doc(db, 'dessins', d.id)); } catch (_) {} } }
     if (showNotif) showNotif('Dessins effacés');
   }
 
@@ -226,15 +273,14 @@ export default function Carte({ showNotif }) {
   function modeBtn(key, label, activeColor) {
     const active = mode === key;
     return (
-      <button onClick={() => { setMode(key); setPendingPoint(null); }}
+      <button onClick={() => { setMode(key); setPendingPoint(null); if (key !== 'zone') cancelZone(); }}
         style={{ flex: 1, fontSize: 11, padding: '7px', borderRadius: 2, cursor: 'pointer', fontFamily: "'Special Elite', cursive",
           border: '1px solid ' + (active ? activeColor : 'rgba(201,168,76,.3)'),
           background: active ? activeColor + '33' : 'transparent', color: active ? activeColor : 'rgba(244,237,216,.6)' }}>{label}</button>
     );
   }
 
-  const drawingMode = mode === 'trait' || mode === 'zone' || mode === 'erase';
-  const cursor = mode === 'erase' ? 'cell' : drawingMode ? 'crosshair' : (mode === 'place' || mode === 'text') ? 'crosshair' : (dragging ? 'grabbing' : 'grab');
+  const cursor = mode === 'erase' ? 'cell' : (mode === 'trait' || mode === 'zone' || mode === 'place' || mode === 'text') ? 'crosshair' : (dragging ? 'grabbing' : 'grab');
 
   return (
     <div style={{ display: 'flex', gap: 0, height: 'calc(100vh - 140px)' }}>
@@ -256,6 +302,22 @@ export default function Carte({ showNotif }) {
           {modeBtn('erase', '🧽 Gomme', '#e67e22')}
         </div>
 
+        {/* Zone en construction */}
+        {mode === 'zone' && zonePoints.length > 0 && (
+          <div style={{ marginBottom: 12, padding: 8, background: 'rgba(155,89,182,.12)', border: '1px solid rgba(155,89,182,.4)', borderRadius: 3 }}>
+            <div style={{ fontSize: 11, color: '#c89be0', fontFamily: "'Special Elite', cursive", marginBottom: 6 }}>
+              Zone : {zonePoints.length} point(s)
+            </div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button onClick={finishZone} disabled={zonePoints.length < 3}
+                style={{ flex: 1, fontSize: 10, padding: '5px', borderRadius: 2, cursor: zonePoints.length < 3 ? 'not-allowed' : 'pointer', fontFamily: "'Special Elite', cursive",
+                  border: '1px solid #9b59b6', background: 'rgba(155,89,182,.25)', color: '#c89be0', opacity: zonePoints.length < 3 ? 0.4 : 1 }}>✓ Fermer</button>
+              <button onClick={cancelZone}
+                style={{ flex: 1, fontSize: 10, padding: '5px', borderRadius: 2, cursor: 'pointer', fontFamily: "'Special Elite', cursive", border: '1px solid rgba(244,237,216,.2)', background: 'transparent', color: 'rgba(244,237,216,.5)' }}>✕ Annuler</button>
+            </div>
+          </div>
+        )}
+
         {/* Couleur */}
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, color: 'rgba(244,237,216,.5)', letterSpacing: 1, marginBottom: 6 }}>COULEUR</div>
@@ -271,7 +333,7 @@ export default function Carte({ showNotif }) {
 
         {/* Épaisseur trait */}
         <div style={{ marginBottom: 12 }}>
-          <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, color: 'rgba(244,237,216,.5)', letterSpacing: 1, marginBottom: 6 }}>ÉPAISSEUR TRAIT</div>
+          <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, color: 'rgba(244,237,216,.5)', letterSpacing: 1, marginBottom: 6 }}>ÉPAISSEUR TRAIT / ZONE</div>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {EPAISSEURS.map(t => (
               <button key={t.key} onClick={() => setEpaisseur(t.key)}
@@ -279,6 +341,20 @@ export default function Carte({ showNotif }) {
                   border: '1px solid ' + (epaisseur === t.key ? 'var(--gold)' : 'rgba(201,168,76,.3)'),
                   background: epaisseur === t.key ? 'rgba(201,168,76,.2)' : 'transparent',
                   color: epaisseur === t.key ? 'var(--gold)' : 'rgba(244,237,216,.5)' }}>{t.label}</button>
+            ))}
+          </div>
+        </div>
+
+        {/* Taille gomme */}
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, color: 'rgba(244,237,216,.5)', letterSpacing: 1, marginBottom: 6 }}>TAILLE GOMME</div>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {GOMMES.map(g => (
+              <button key={g.key} onClick={() => setGomme(g.key)}
+                style={{ fontSize: 10, padding: '4px 8px', borderRadius: 2, cursor: 'pointer', fontFamily: "'Special Elite', cursive",
+                  border: '1px solid ' + (gomme === g.key ? '#e67e22' : 'rgba(201,168,76,.3)'),
+                  background: gomme === g.key ? 'rgba(230,126,34,.2)' : 'transparent',
+                  color: gomme === g.key ? '#e67e22' : 'rgba(244,237,216,.5)' }}>{g.label}</button>
             ))}
           </div>
         </div>
@@ -313,7 +389,6 @@ export default function Carte({ showNotif }) {
           </div>
         </div>
 
-        {/* Effacer tous les dessins */}
         {dessins.length > 0 && (
           <button onClick={clearDessins}
             style={{ width: '100%', fontSize: 10, padding: '6px', marginBottom: 12, borderRadius: 2, cursor: 'pointer', fontFamily: "'Special Elite', cursive",
@@ -380,7 +455,7 @@ export default function Carte({ showNotif }) {
 
         <div style={{ position: 'absolute', bottom: 12, left: 12, zIndex: 20, fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'rgba(201,168,76,.8)', background: 'rgba(26,14,4,.65)', padding: '3px 10px', borderRadius: 2, border: '1px solid rgba(201,168,76,.25)', pointerEvents: 'none' }}>
           🗺 {Math.round(zoom * 100)}%
-          {mode === 'place' ? ' — Cliquez pour poser une balise' : mode === 'text' ? ' — Cliquez pour inscrire du texte' : mode === 'trait' ? ' — Maintenez et glissez pour tracer' : mode === 'zone' ? ' — Maintenez et glissez pour dessiner une zone' : mode === 'erase' ? ' — Cliquez sur un dessin pour le gommer' : ''}
+          {mode === 'place' ? ' — Cliquez pour poser une balise' : mode === 'text' ? ' — Cliquez pour inscrire du texte' : mode === 'trait' ? ' — Maintenez et glissez pour tracer' : mode === 'zone' ? ' — Cliquez point par point, rejoignez le 1er point pour fermer' : mode === 'erase' ? ' — Glissez sur les dessins pour gommer' : ''}
         </div>
 
         {pendingPoint && (
@@ -423,17 +498,24 @@ export default function Carte({ showNotif }) {
 
             {/* Couche SVG des dessins */}
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 4 }}>
-              {filteredDessins.map(d => d.type === 'zone' ? (
-                <path key={d.id} d={pointsToPath(d.points, true)} fill={hexOf(d.couleur) + '40'} stroke={hexOf(d.couleur)} strokeWidth={wOf(d.epaisseur)} strokeLinejoin="round" />
+              {filteredDessins.map((d, i) => d.type === 'zone' ? (
+                <path key={d.id || 'z' + i} d={pointsToPath(d.points, true)} fill={hexOf(d.couleur) + '40'} stroke={hexOf(d.couleur)} strokeWidth={wOf(d.epaisseur)} strokeLinejoin="round" />
               ) : (
-                <path key={d.id} d={pointsToPath(d.points, false)} fill="none" stroke={hexOf(d.couleur)} strokeWidth={wOf(d.epaisseur)} strokeLinecap="round" strokeLinejoin="round" />
+                <path key={d.id || 't' + i} d={pointsToPath(d.points, false)} fill="none" stroke={hexOf(d.couleur)} strokeWidth={wOf(d.epaisseur)} strokeLinecap="round" strokeLinejoin="round" />
               ))}
-              {/* Dessin en cours */}
-              {currentPath && (currentPath.type === 'zone' ? (
-                <path d={pointsToPath(currentPath.points, true)} fill={hexOf(currentPath.couleur) + '33'} stroke={hexOf(currentPath.couleur)} strokeWidth={wOf(currentPath.epaisseur)} strokeDasharray="1 1" />
-              ) : (
+              {/* Trait en cours */}
+              {currentPath && (
                 <path d={pointsToPath(currentPath.points, false)} fill="none" stroke={hexOf(currentPath.couleur)} strokeWidth={wOf(currentPath.epaisseur)} strokeLinecap="round" strokeLinejoin="round" />
-              ))}
+              )}
+              {/* Zone en construction */}
+              {zonePoints.length > 0 && (
+                <g>
+                  <path d={pointsToPath(zonePoints, false)} fill="none" stroke={hexOf(couleur)} strokeWidth={wOf(epaisseur)} strokeDasharray="1 1" strokeLinecap="round" />
+                  {zonePoints.map((pt, i) => (
+                    <circle key={i} cx={pt.x} cy={pt.y} r={i === 0 ? 1 : 0.6} fill={i === 0 ? '#fff' : hexOf(couleur)} stroke={hexOf(couleur)} strokeWidth="0.2" />
+                  ))}
+                </g>
+              )}
             </svg>
 
             {/* Marquages */}
