@@ -12,6 +12,7 @@ import Plaintes from './components/Plaintes';
 import Notes from './components/Notes';
 import Groupes from './components/Groupes';
 import News from './components/News';
+import Carte from './components/Carte';
 import Convocations from './components/Convocations';
 import Saisies from './components/Saisies';
 import RegistreArmes from './components/RegistreArmes';
@@ -85,6 +86,7 @@ const SECTIONS = [
   { key: 'verbalization', label: '📋 Verbalisation' },
   { key: 'casier',        label: '🗄 Casier Judiciaire' },
   { key: 'saisies',       label: '📦 Saisies' },
+  { key: 'carte',         label: '🗺 Carte' },
   { key: 'registreArmes', label: '🔫 Registre des Armes' },
   { key: 'convocations',  label: '📋 Convocations' },
   { key: 'notes',         label: '📌 Notes & Informations' },
@@ -179,6 +181,7 @@ export default function App() {
         {section === 'groupes'       && <Groupes       showNotif={showNotif} />}
         {section === 'plaintes'      && <Plaintes      showNotif={showNotif} targetId={newsTarget?.type === 'plainte' ? newsTarget?.id : null} onTargetOpened={() => setNewsTarget(null)} />}
         {section === 'saisies'       && <Saisies       showNotif={showNotif} />}
+        {section === 'carte'         && <Carte />}
         {section === 'registreArmes' && <RegistreArmes showNotif={showNotif} />}
         {section === 'convocations'  && <Convocations  showNotif={showNotif} targetId={newsTarget?.type === 'convocation' ? newsTarget?.id : null} onTargetOpened={() => setNewsTarget(null)} />}
         {section === 'notes'         && <Notes         showNotif={showNotif} targetId={newsTarget?.type === 'note' ? newsTarget?.id : null} onTargetOpened={() => setNewsTarget(null)} />}
