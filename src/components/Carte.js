@@ -64,6 +64,7 @@ export default function Carte({ showNotif }) {
   const [editItem, setEditItem] = useState(null);
 
   const [currentPath, setCurrentPath] = useState(null); // trait en cours (drag)
+  const [eraserPos, setEraserPos] = useState(null); // position du curseur gomme en %
   const [zonePoints, setZonePoints] = useState([]);       // zone en construction (clics)
   const isDrawing = useRef(false);
   const pendingDelete = useRef(new Set());
@@ -81,10 +82,20 @@ export default function Carte({ showNotif }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Applique un nouveau zoom en gardant le centre de la vue fixe
+  function applyZoom(newZoom) {
+    const nz = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +newZoom.toFixed(2)));
+    setZoom(prevZoom => {
+      const factor = nz / prevZoom;
+      setPos(p => ({ x: p.x * factor, y: p.y * factor }));
+      return nz;
+    });
+  }
+
   function handleWheel(e) {
     e.preventDefault();
     const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
-    setZoom(z => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(z + delta).toFixed(2))));
+    applyZoom(zoom + delta);
   }
 
   function getPct(e) {
@@ -109,6 +120,7 @@ export default function Carte({ showNotif }) {
   }
 
   function handleMouseMove(e) {
+    if (mode === 'erase') setEraserPos(getPct(e));
     if (dragging && dragStart.current) {
       const dx = e.clientX - dragStart.current.mx;
       const dy = e.clientY - dragStart.current.my;
@@ -119,6 +131,11 @@ export default function Carte({ showNotif }) {
     } else if (mode === 'erase' && e.buttons === 1) {
       eraseAt(e);
     }
+  }
+
+  function handleMouseLeaveZone() {
+    handleMouseUp();
+    setEraserPos(null);
   }
 
   async function handleMouseUp() {
@@ -253,8 +270,8 @@ export default function Carte({ showNotif }) {
     if (showNotif) showNotif('Dessins effacés');
   }
 
-  function zoomIn()  { setZoom(z => Math.min(ZOOM_MAX, +(z + ZOOM_STEP * 2).toFixed(2))); }
-  function zoomOut() { setZoom(z => Math.max(ZOOM_MIN, +(z - ZOOM_STEP * 2).toFixed(2))); }
+  function zoomIn()  { applyZoom(zoom + ZOOM_STEP * 2); }
+  function zoomOut() { applyZoom(zoom - ZOOM_STEP * 2); }
   function reset()   { setZoom(0.5); setPos({ x: 0, y: 0 }); }
 
   const filtered = filtreCouleur ? balises.filter(b => b.couleur === filtreCouleur) : balises;
@@ -280,7 +297,7 @@ export default function Carte({ showNotif }) {
     );
   }
 
-  const cursor = mode === 'erase' ? 'cell' : (mode === 'trait' || mode === 'zone' || mode === 'place' || mode === 'text') ? 'crosshair' : (dragging ? 'grabbing' : 'grab');
+  const cursor = mode === 'erase' ? 'none' : (mode === 'trait' || mode === 'zone' || mode === 'place' || mode === 'text') ? 'crosshair' : (dragging ? 'grabbing' : 'grab');
 
   return (
     <div style={{ display: 'flex', gap: 0, height: 'calc(100vh - 140px)' }}>
@@ -491,7 +508,7 @@ export default function Carte({ showNotif }) {
           </div>
         )}
 
-        <div ref={containerRef} onWheel={handleWheel} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
+        <div ref={containerRef} onWheel={handleWheel} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseLeaveZone}
           style={{ width: '100%', height: '100%', overflow: 'hidden', cursor, background: '#d4b896', display: 'flex', alignItems: 'center', justifyContent: 'center', userSelect: 'none' }}>
           <div style={{ position: 'relative', transform: `translate(${pos.x}px, ${pos.y}px) scale(${zoom})`, transformOrigin: 'center center', transition: dragging ? 'none' : 'transform 0.08s ease' }}>
             <img ref={imgRef} src={process.env.PUBLIC_URL + '/map.jpg'} alt="Carte du comté de Lemoyne" draggable={false} onClick={handleImageClick} style={{ maxWidth: 'none', display: 'block' }} />
@@ -515,6 +532,10 @@ export default function Carte({ showNotif }) {
                     <circle key={i} cx={pt.x} cy={pt.y} r={i === 0 ? 1 : 0.6} fill={i === 0 ? '#fff' : hexOf(couleur)} stroke={hexOf(couleur)} strokeWidth="0.2" />
                   ))}
                 </g>
+              )}
+              {/* Curseur de la gomme */}
+              {mode === 'erase' && eraserPos && (
+                <circle cx={eraserPos.x} cy={eraserPos.y} r={rOf(gomme)} fill="rgba(230,126,34,.18)" stroke="#e67e22" strokeWidth="0.25" strokeDasharray="0.6 0.4" />
               )}
             </svg>
 
