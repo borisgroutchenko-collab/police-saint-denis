@@ -529,7 +529,7 @@ export default function Carte({ showNotif }) {
                 <g>
                   <path d={pointsToPath(zonePoints, false)} fill="none" stroke={hexOf(couleur)} strokeWidth={wOf(epaisseur)} strokeDasharray="1 1" strokeLinecap="round" />
                   {zonePoints.map((pt, i) => (
-                    <circle key={i} cx={pt.x} cy={pt.y} r={i === 0 ? 1 : 0.6} fill={i === 0 ? '#fff' : hexOf(couleur)} stroke={hexOf(couleur)} strokeWidth="0.2" />
+                    <circle key={i} cx={pt.x} cy={pt.y} r={i === 0 ? 0.1 : 0.06} fill={i === 0 ? '#fff' : hexOf(couleur)} stroke={hexOf(couleur)} strokeWidth="0.02" />
                   ))}
                 </g>
               )}
