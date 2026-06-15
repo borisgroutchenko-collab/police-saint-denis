@@ -535,7 +535,7 @@ export default function Carte({ showNotif }) {
               )}
               {/* Curseur de la gomme */}
               {mode === 'erase' && eraserPos && (
-                <circle cx={eraserPos.x} cy={eraserPos.y} r={rOf(gomme)} fill="rgba(230,126,34,.18)" stroke="#e67e22" strokeWidth="0.25" strokeDasharray="0.6 0.4" />
+                <circle cx={eraserPos.x} cy={eraserPos.y} r={rOf(gomme)} fill="rgba(230,126,34,.18)" stroke="#e67e22" strokeWidth="0.06" vectorEffect="non-scaling-stroke" />
               )}
             </svg>
 
