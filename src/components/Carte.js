@@ -262,12 +262,11 @@ export default function Carte({ showNotif }) {
     } catch (e) { if (showNotif) showNotif('Erreur modification', true); }
   }
 
-  async function clearDessins() {
-    if (!dessins.length) return;
-    const copy = [...dessins];
-    setDessins([]);
-    for (const d of copy) { if (d.id) { try { await deleteDoc(doc(db, 'dessins', d.id)); } catch (_) {} } }
-    if (showNotif) showNotif('Dessins effacés');
+  async function deleteDessin(id) {
+    if (!id) return;
+    setDessins(ds => ds.filter(x => x.id !== id));
+    try { await deleteDoc(doc(db, 'dessins', id)); } catch (_) {}
+    if (showNotif) showNotif('Dessin supprimé');
   }
 
   function zoomIn()  { applyZoom(zoom + ZOOM_STEP * 2); }
@@ -406,12 +405,22 @@ export default function Carte({ showNotif }) {
           </div>
         </div>
 
-        {dessins.length > 0 && (
-          <button onClick={clearDessins}
-            style={{ width: '100%', fontSize: 10, padding: '6px', marginBottom: 12, borderRadius: 2, cursor: 'pointer', fontFamily: "'Special Elite', cursive",
-              border: '1px solid rgba(230,126,34,.5)', background: 'rgba(230,126,34,.12)', color: '#e67e22', letterSpacing: 1 }}>
-            🧽 Effacer tous les dessins ({dessins.length})
-          </button>
+        {/* Liste des dessins (traits & zones) supprimables un à un */}
+        {filteredDessins.length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'var(--gold)', letterSpacing: 1, marginBottom: 8, textAlign: 'center', borderTop: '1px solid rgba(201,168,76,.2)', paddingTop: 10 }}>
+              ✚ DESSINS ({filteredDessins.length}) ✚
+            </div>
+            {filteredDessins.map((d, i) => (
+              <div key={d.id || 'd' + i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,.25)', border: '1px solid rgba(201,168,76,.15)', borderRadius: 3, padding: '6px 8px', marginBottom: 6 }}>
+                <span style={{ fontSize: 11, flexShrink: 0 }}>{d.type === 'zone' ? '⬠' : '✏'}</span>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: hexOf(d.couleur), flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: 12, color: 'rgba(244,237,216,.85)' }}>{d.type === 'zone' ? 'Zone' : 'Trait'} {i + 1}</span>
+                <button onClick={() => deleteDessin(d.id)} title="Supprimer ce dessin"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ff6b6b', fontSize: 13, padding: 0 }}>✕</button>
+              </div>
+            ))}
+          </div>
         )}
 
         {/* Liste marquages */}
@@ -516,7 +525,7 @@ export default function Carte({ showNotif }) {
             {/* Couche SVG des dessins */}
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 4 }}>
               {filteredDessins.map((d, i) => d.type === 'zone' ? (
-                <path key={d.id || 'z' + i} d={pointsToPath(d.points, true)} fill={hexOf(d.couleur) + '40'} stroke={hexOf(d.couleur)} strokeWidth={wOf(d.epaisseur)} strokeLinejoin="round" />
+                <path key={d.id || 'z' + i} d={pointsToPath(d.points, true)} fill={hexOf(d.couleur) + '40'} stroke={hexOf(d.couleur)} strokeWidth={wOf(d.epaisseur) / 10} strokeLinejoin="round" />
               ) : (
                 <path key={d.id || 't' + i} d={pointsToPath(d.points, false)} fill="none" stroke={hexOf(d.couleur)} strokeWidth={wOf(d.epaisseur)} strokeLinecap="round" strokeLinejoin="round" />
               ))}
