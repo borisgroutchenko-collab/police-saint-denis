@@ -32,9 +32,9 @@ const EPAISSEURS = [
 function wOf(key) { const e = EPAISSEURS.find(e => e.key === key); return e ? e.w : 0.25; }
 
 const GOMMES = [
-  { key: 'petit', label: 'Petite', r: 1 },
-  { key: 'moyen', label: 'Moyenne', r: 2 },
-  { key: 'grand', label: 'Grande', r: 3.5 },
+  { key: 'petit', label: 'Petite', r: 0.25 },
+  { key: 'moyen', label: 'Moyenne', r: 0.5 },
+  { key: 'grand', label: 'Grande', r: 0.875 },
 ];
 function rOf(key) { const g = GOMMES.find(g => g.key === key); return g ? g.r : 2; }
 
