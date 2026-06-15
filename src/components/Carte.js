@@ -214,7 +214,7 @@ export default function Carte({ showNotif }) {
       setTitreInput('');
     } else if (mode === 'zone') {
       const p = getPct(e);
-      if (zonePoints.length >= 3 && dist(p, zonePoints[0]) < 2) {
+      if (zonePoints.length >= 3 && dist(p, zonePoints[0]) < 0.4 / zoom) {
         finishZone();
       } else {
         setZonePoints(zp => [...zp, p]);
