@@ -119,6 +119,19 @@ function PlainteModal({ plainte, citoyens, agents, groupes, onClose, onSaved, sh
   // Groupes mis en cause
   const [groupesMisEnCause, setGroupesMisEnCause] = useState(plainte?.groupesMisEnCause || []);
 
+  // Photos (liens URL)
+  const [photos, setPhotos] = useState(plainte?.photos || []);
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [lightbox, setLightbox] = useState(null);
+
+  function addPhoto() {
+    const url = photoUrl.trim();
+    if (!url) return;
+    if (!url.startsWith('http')) { showNotif('Le lien doit commencer par http...', true); return; }
+    setPhotos(prev => [...prev, url]);
+    setPhotoUrl('');
+  }
+
   // Plaignants
   function addPlaignant() { setPlaignants(p => [...p, { citoyenId: '', nom: '', prenom: '' }]); }
   function removePlaignant(i) { setPlaignants(p => p.filter((_, j) => j !== i)); }
@@ -142,7 +155,7 @@ function PlainteModal({ plainte, citoyens, agents, groupes, onClose, onSaved, sh
     const plaintifsStr = plaignants.filter(p => p.citoyenId).map(p => (p.prenom ? p.prenom + ' ' : '') + (p.nom || '')).join(', ');
     const misStr = misEnCause.map(m => m.inconnu ? 'Inconnu (X)' : nomCompletMis(m) || 'Inconnu').join(', ');
     const groupesLies = groupesMisEnCause.filter(g => g.groupeId).map(g => g.groupeId);
-    const data = { ...form, plaignants, misEnCause, groupesMisEnCause, plaintifsStr, misStr, groupesLies, updatedAt: serverTimestamp() };
+    const data = { ...form, plaignants, misEnCause, groupesMisEnCause, photos, plaintifsStr, misStr, groupesLies, updatedAt: serverTimestamp() };
     try {
       let savedId = plainte?.id;
       if (plainte?.id) {
@@ -301,11 +314,37 @@ function PlainteModal({ plainte, citoyens, agents, groupes, onClose, onSaved, sh
           <textarea className="field-textarea" style={{ minHeight: 100 }} placeholder="Témoignages recueillis, indices, pistes, suspects identifiés, actions en cours..." value={form.elementsEnquete} onChange={e => setForm(f => ({ ...f, elementsEnquete: e.target.value }))} />
         </div>
 
+        {/* Photos / images (liens URL) */}
+        <div style={{ marginBottom: 16 }}>
+          <label className="field-label">Images (liens URL)</label>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <input type="url" className="field-input" style={{ flex: 1 }} placeholder="https://..." value={photoUrl} onChange={e => setPhotoUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addPhoto())} />
+            <button className="btn-gold" type="button" onClick={addPhoto}>+ Ajouter</button>
+          </div>
+          <div style={{ fontSize: 11, color: 'rgba(244,237,216,.4)', marginBottom: 8 }}>Uploadez sur fixitfy.com.tr, imgbb.com ou imgur.com puis collez le lien</div>
+          {photos.length > 0 && (
+            <div className="photo-preview-grid">
+              {photos.map((url, i) => (
+                <div key={i} className="photo-preview">
+                  <img src={url} alt="" onClick={() => setLightbox(url)} onError={e => { e.target.parentElement.style.background = 'rgba(139,26,26,0.3)'; e.target.style.display = 'none'; }} />
+                  <button className="photo-remove" type="button" onClick={() => setPhotos(p => p.filter((_, j) => j !== i))}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="actions-row">
           <button className="btn-submit" onClick={save}>💾 Enregistrer la plainte</button>
           <button className="btn-red" onClick={onClose}>Annuler</button>
         </div>
       </div>
+
+      {lightbox && (
+        <div onClick={() => setLightbox(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}>
+          <img src={lightbox} alt="preuve" style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 3, border: '2px solid var(--gold)' }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -540,6 +579,7 @@ function PlainteDetail({ plainte, agents, citoyens, casiers, onBack, onEdit, onD
   const statut = STATUTS.find(s => s.key === plainte.statut) || STATUTS[0];
   const casiersLies = (plainte.casiersLies || []).map(id => casiers[id]).filter(Boolean);
   const [modal, setModal] = useState(null); // null | { type: 'verbaliser', misIndex } | { type: 'lier' }
+  const [lightboxDetail, setLightboxDetail] = useState(null);
 
   async function changerStatut(s) {
     try {
@@ -558,6 +598,11 @@ function PlainteDetail({ plainte, agents, citoyens, casiers, onBack, onEdit, onD
 
   return (
     <div>
+      {lightboxDetail && (
+        <div onClick={() => setLightboxDetail(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}>
+          <img src={lightboxDetail} alt="preuve" style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 3, border: '2px solid var(--gold)' }} />
+        </div>
+      )}
       {modal?.type === 'verbaliser' && (
         <VerbalisationModal plainte={plainte} misIndex={modal.misIndex} agents={agents}
           onClose={() => setModal(null)} onDone={() => { setModal(null); onReload(); }} showNotif={showNotif} />
@@ -643,6 +688,20 @@ function PlainteDetail({ plainte, agents, citoyens, casiers, onBack, onEdit, onD
           <div style={{ marginBottom: 16, background: 'rgba(26,58,110,.15)', border: '1px solid rgba(26,58,110,.4)', borderLeft: '3px solid #6699cc', borderRadius: '0 4px 4px 0', padding: '14px 18px' }}>
             <span className="field-label" style={{ color: '#9ec4ff' }}>🔍 Éléments d'enquête en cours</span>
             <div style={{ fontSize: 14, color: 'rgba(244,237,216,.85)', lineHeight: 1.7, marginTop: 8, whiteSpace: 'pre-wrap' }}>{plainte.elementsEnquete}</div>
+          </div>
+        )}
+
+        {/* Images */}
+        {(plainte.photos || []).length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <span className="field-label" style={{ display: 'block', marginBottom: 10 }}>📷 Images ({plainte.photos.length})</span>
+            <div className="photo-preview-grid">
+              {plainte.photos.map((url, i) => (
+                <div key={i} className="photo-preview">
+                  <img src={url} alt="" onClick={() => setLightboxDetail(url)} onError={e => { e.target.parentElement.style.background = 'rgba(139,26,26,0.3)'; e.target.style.display = 'none'; }} />
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
