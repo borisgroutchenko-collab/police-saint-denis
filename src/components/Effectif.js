@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../firebase';
+import { sha256 } from '../auth';
 import {
   collection, getDocs, addDoc, deleteDoc, updateDoc,
   doc, orderBy, query, serverTimestamp,
@@ -11,23 +12,46 @@ import {
 // ── Modal ajout / édition ──────────────────────────────────────
 function AgentModal({ agent, onClose, onSaved, showNotif }) {
   const [form, setForm] = useState({
-    nom:       agent?.nom       || '',
-    prenom:    agent?.prenom    || '',
-    grade:     agent?.grade     || '',
-    telegram:  agent?.telegram  || '',
+    nom:         agent?.nom         || '',
+    prenom:      agent?.prenom      || '',
+    grade:       agent?.grade       || '',
+    telegram:    agent?.telegram    || '',
+    identifiant: agent?.identifiant || '',
+    actif:       agent?.actif !== false,
   });
+  const [motDePasse, setMotDePasse] = useState('');
 
   async function save() {
     if (!form.nom || !form.prenom) {
       showNotif('Nom et prénom obligatoires', true); return;
     }
+    const ident = (form.identifiant || '').trim().toLowerCase();
+    if (!ident) {
+      showNotif('Identifiant de connexion obligatoire', true); return;
+    }
+    // Nouvel agent : mot de passe obligatoire
+    if (!agent?.id && !motDePasse) {
+      showNotif('Mot de passe obligatoire pour un nouvel agent', true); return;
+    }
     try {
+      const data = {
+        nom: form.nom,
+        prenom: form.prenom,
+        grade: form.grade,
+        telegram: form.telegram,
+        identifiant: ident,
+        actif: form.actif,
+      };
+      // Si un mot de passe est saisi, on le hashe et on le stocke
+      if (motDePasse) {
+        data.motDePasseHash = await sha256(motDePasse);
+      }
       if (agent?.id) {
-        await updateDoc(doc(db, 'effectif', agent.id), form);
+        await updateDoc(doc(db, 'effectif', agent.id), data);
         showNotif('Agent modifié !');
       } else {
         await addDoc(collection(db, 'effectif'), {
-          ...form,
+          ...data,
           createdAt: serverTimestamp(),
         });
         showNotif('Agent ajouté !');
@@ -62,6 +86,24 @@ function AgentModal({ agent, onClose, onSaved, showNotif }) {
             <label className="field-label">N° Télégramme</label>
             <input type="text" className="field-input" placeholder="Ex: ABC-1234" value={form.telegram} onChange={e => setForm(f => ({ ...f, telegram: e.target.value }))} />
           </div>
+        </div>
+
+        <div style={{ borderTop: '1px solid rgba(201,168,76,.25)', margin: '4px 0 16px', paddingTop: 14 }}>
+          <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 12, color: 'var(--gold)', letterSpacing: 1, marginBottom: 12 }}>🔐 Accès au système</div>
+          <div className="form-grid" style={{ marginBottom: 16 }}>
+            <div>
+              <label className="field-label">Identifiant de connexion *</label>
+              <input type="text" className="field-input" placeholder="Ex: m.hayes" value={form.identifiant} onChange={e => setForm(f => ({ ...f, identifiant: e.target.value }))} autoComplete="off" />
+            </div>
+            <div>
+              <label className="field-label">{agent?.id ? 'Nouveau mot de passe (laisser vide pour ne pas changer)' : 'Mot de passe *'}</label>
+              <input type="password" className="field-input" placeholder={agent?.id ? '••••••' : 'Mot de passe'} value={motDePasse} onChange={e => setMotDePasse(e.target.value)} autoComplete="new-password" />
+            </div>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'rgba(244,237,216,.8)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={form.actif} onChange={e => setForm(f => ({ ...f, actif: e.target.checked }))} />
+            Compte actif (décocher pour bloquer la connexion de cet agent)
+          </label>
         </div>
 
         <div className="actions-row">

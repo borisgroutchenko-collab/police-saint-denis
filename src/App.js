@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './index.css';
-import { APP_PASSWORD, db } from './firebase';
+import { db } from './firebase';
+import { authenticate, checkMaster } from './auth';
 import { collection, getDocs } from 'firebase/firestore';
 import { useNotif } from './hooks/useNotif';
 import Verbalization from './components/Verbalization';
@@ -22,12 +23,32 @@ import RegistreArmes from './components/RegistreArmes';
 const LOGO_URL = null; // null = initiales affichées à la place
 
 function Login({ onLogin }) {
+  const [identifiant, setIdentifiant] = useState('');
   const [pw, setPw] = useState('');
   const [error, setError] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  function submit() {
-    if (pw === APP_PASSWORD) { onLogin(); }
-    else { setError(true); setPw(''); }
+  async function submit() {
+    if (busy) return;
+    setBusy(true);
+    setError(false);
+    // Connexion nominative par identifiant + mot de passe
+    const agent = await authenticate(identifiant, pw);
+    if (agent) {
+      onLogin(agent);
+      setBusy(false);
+      return;
+    }
+    // Repli : mot de passe maitre sans identifiant
+    if (!identifiant.trim()) {
+      const master = await checkMaster(pw);
+      if (master) {
+        onLogin({ nom: 'Administration', prenom: '', grade: 'Maitre', identifiant: 'admin' });
+        setBusy(false);
+        return;
+      }
+    }
+    setError(true); setPw(''); setBusy(false);
   }
 
   return (
@@ -53,20 +74,31 @@ function Login({ onLogin }) {
 
         <hr style={{ border: 'none', borderTop: '1px solid rgba(201,168,76,.3)', margin: '20px 0 30px' }} />
 
+        <div style={{ marginBottom: 14, textAlign: 'left' }}>
+          <label className="field-label">Identifiant</label>
+          <input
+            type="text" className="field-input" placeholder="Votre identifiant d'agent"
+            value={identifiant} onChange={e => { setIdentifiant(e.target.value); setError(false); }}
+            onKeyDown={e => e.key === 'Enter' && submit()}
+            autoComplete="username"
+          />
+        </div>
+
         <div style={{ marginBottom: 20, textAlign: 'left' }}>
           <label className="field-label">Mot de passe</label>
           <input
             type="password" className="field-input" placeholder="Mot de passe confidentiel"
             value={pw} onChange={e => { setPw(e.target.value); setError(false); }}
             onKeyDown={e => e.key === 'Enter' && submit()}
+            autoComplete="current-password"
           />
         </div>
 
-        <button className="btn-submit" style={{ width: '100%', marginTop: 10 }} onClick={submit}>
-          Accéder au Système
+        <button className="btn-submit" style={{ width: '100%', marginTop: 10 }} onClick={submit} disabled={busy}>
+          {busy ? 'Vérification...' : 'Accéder au Système'}
         </button>
 
-        {error && <div style={{ color: '#ff6b6b', fontSize: 14, marginTop: 10 }}>⚠ Mot de passe incorrect</div>}
+        {error && <div style={{ color: '#ff6b6b', fontSize: 14, marginTop: 10 }}>⚠ Identifiant ou mot de passe incorrect</div>}
 
         <hr style={{ border: 'none', borderTop: '1px solid rgba(201,168,76,.3)', margin: '20px 0 10px' }} />
         <div style={{ fontSize: 11, color: 'rgba(244,237,216,.3)', fontFamily: "'Special Elite', cursive", letterSpacing: 1 }}>
@@ -96,6 +128,7 @@ const SECTIONS = [
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
+  const [currentAgent, setCurrentAgent] = useState(null);
   const [section, setSection] = useState('news');
   const [newsTarget, setNewsTarget] = useState(null); // { type, id }
   const [casierTarget, setCasierTarget] = useState(null); // idNum à ouvrir dans Casier
@@ -106,7 +139,7 @@ export default function App() {
     setSection('casier');
   }
 
-  if (!loggedIn) return <Login onLogin={() => setLoggedIn(true)} />;
+  if (!loggedIn) return <Login onLogin={(agent) => { setCurrentAgent(agent); setLoggedIn(true); }} />;
 
   function handleNewsNavigate(type, id) {
     const map = {
@@ -129,7 +162,12 @@ export default function App() {
       for (const col of COLS) {
         try {
           const snap = await getDocs(collection(db, col));
-          backup.collections[col] = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+          backup.collections[col] = snap.docs.map(d => {
+            const data = { _id: d.id, ...d.data() };
+            // Ne jamais exporter les hash de mots de passe
+            if (col === 'effectif') delete data.motDePasseHash;
+            return data;
+          });
         } catch (_) { backup.collections[col] = []; }
       }
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
@@ -168,7 +206,13 @@ export default function App() {
             style={{ marginRight: 6, background: 'rgba(201,168,76,.15)', border: '1px solid rgba(201,168,76,.4)', borderRadius: 2, padding: '4px 12px', fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'var(--gold)', cursor: 'pointer', letterSpacing: 1 }}
             title="Exporter une sauvegarde JSON"
           >💾 Backup</button>
-          <button className="logout-btn" onClick={() => setLoggedIn(false)}>Déconnexion</button>
+          {currentAgent && (
+            <span style={{ marginRight: 10, fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'rgba(201,168,76,.85)', letterSpacing: 1 }}
+              title="Agent connecté">
+              👤 {(currentAgent.grade ? currentAgent.grade + ' ' : '') + currentAgent.prenom + ' ' + currentAgent.nom}
+            </span>
+          )}
+          <button className="logout-btn" onClick={() => { setLoggedIn(false); setCurrentAgent(null); }}>Déconnexion</button>
         </div>
       </div>
 
