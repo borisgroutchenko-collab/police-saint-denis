@@ -43,7 +43,8 @@ export default function Verbalization({ showNotif }) {
   const total = totalOverride !== '' ? parseInt(totalOverride) || 0 : totalAuto;
   const hasSisika = selected.some(x => x.sisika);
 
-  function handleCitoyenSelect(val) {
+  function handleCitoyenSelect(e) {
+    const val = e.target.value;
     if (!val) { setCitoyenChoisi(null); return; }
     const c = citoyens.find(c => c.id === val);
     setCitoyenChoisi(c || null);
@@ -205,7 +206,6 @@ export default function Verbalization({ showNotif }) {
               options={agents.map(a => ({ value: `${a.grade || ''} ${a.prenom || ''} ${a.nom || ''}`.trim(), label: (a.grade ? a.grade + ' — ' : '') + (a.prenom || '') + ' ' + (a.nom || '') }))}
               placeholder="— Sélectionner un agent —"
             />
-            )}
           </div>
         </div>
 
