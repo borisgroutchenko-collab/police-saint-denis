@@ -64,8 +64,8 @@ function MouvementModal({ bureau, agents, onClose, onSaved, showNotif }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+    <div className="modal-overlay open" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
         <div className="card-title" style={{ marginBottom: 20 }}>
           {sens === 'entree' ? '➕ Nouvelle rentrée' : '➖ Nouvelle dépense'} — {bureauLabel(bureau)}
         </div>
