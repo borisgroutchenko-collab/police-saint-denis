@@ -175,6 +175,11 @@ function NoteDetail({ note, onBack, onEdit, onDelete }) {
             <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: c.titre, marginBottom: 6 }}>
               {note.titre}
             </div>
+            {note.agent && (
+              <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 12, color: 'var(--gold)', letterSpacing: 1, marginBottom: 4 }}>
+                ✒ Officier rédacteur : {note.agent}
+              </div>
+            )}
             {dateStr && (
               <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'rgba(244,237,216,.4)', letterSpacing: 1 }}>
                 Dernière modification : {dateStr}
@@ -236,6 +241,11 @@ function NoteCard({ note, onOpen, onEdit, onDelete }) {
       {apercu && (
         <div style={{ fontSize: 13, color: 'rgba(244,237,216,.65)', lineHeight: 1.6, fontFamily: "'Crimson Text', serif" }}>
           {apercu}
+        </div>
+      )}
+      {note.agent && (
+        <div style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, color: 'var(--gold)', letterSpacing: 1 }}>
+          ✒ {note.agent}
         </div>
       )}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 4 }} onClick={e => e.stopPropagation()}>

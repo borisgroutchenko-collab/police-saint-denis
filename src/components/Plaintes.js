@@ -12,6 +12,7 @@ const STATUTS = [
   { key: 'ouverte',   label: '🔴 Ouverte',        color: '#ff6b6b' },
   { key: 'instruite', label: '🟡 En instruction',  color: '#ffcc44' },
   { key: 'classee',   label: '🟢 Classée',         color: '#90ee90' },
+  { key: 'coldcase',  label: '🔵 Cold Case',       color: '#6699cc' },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────
