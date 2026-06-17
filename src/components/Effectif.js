@@ -7,7 +7,7 @@ import {
 } from 'firebase/firestore';
 
 // ── Grades disponibles ─────────────────────────────────────────
-// Plus utilisé comme liste fixe — la saisie est libre.
+const GRADES = ['Commandant', 'Capitaine', 'Sergent', 'Agent', 'Recrue', 'Procureur'];
 
 // ── Modal ajout / édition ──────────────────────────────────────
 function AgentModal({ agent, onClose, onSaved, showNotif }) {
@@ -80,7 +80,10 @@ function AgentModal({ agent, onClose, onSaved, showNotif }) {
         <div className="form-grid" style={{ marginBottom: 16 }}>
           <div>
             <label className="field-label">Grade</label>
-            <input type="text" className="field-input" placeholder="Ex: Shérif Adjoint" value={form.grade} onChange={e => setForm(f => ({ ...f, grade: e.target.value }))} />
+            <select className="field-select" value={form.grade} onChange={e => setForm(f => ({ ...f, grade: e.target.value }))}>
+              <option value="">— Sélectionner un grade —</option>
+              {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
           </div>
           <div>
             <label className="field-label">N° Télégramme</label>
@@ -144,13 +147,14 @@ export default function Effectif({ showNotif }) {
   // Couleur de badge par grade
   function gradeBadgeStyle(grade) {
     const map = {
-      "Shérif en Chef":   { background: 'rgba(201,168,76,.25)', border: '1px solid var(--gold)', color: 'var(--gold)' },
-      "Shérif":           { background: 'rgba(201,168,76,.15)', border: '1px solid rgba(201,168,76,.6)', color: 'var(--gold-light)' },
-      "Shérif Adjoint":   { background: 'rgba(26,58,110,.3)',   border: '1px solid rgba(26,58,110,.7)', color: '#9ec4ff' },
-      "Adjoint Senior":   { background: 'rgba(0,0,0,.3)',       border: '1px solid rgba(244,237,216,.2)', color: 'rgba(244,237,216,.8)' },
-      "Adjoint":          { background: 'rgba(0,0,0,.2)',       border: '1px solid rgba(244,237,216,.15)', color: 'rgba(244,237,216,.6)' },
+      "Commandant": { background: 'rgba(201,168,76,.25)', border: '1px solid var(--gold)', color: 'var(--gold)' },
+      "Capitaine":  { background: 'rgba(201,168,76,.15)', border: '1px solid rgba(201,168,76,.6)', color: 'var(--gold-light)' },
+      "Sergent":    { background: 'rgba(26,58,110,.3)',   border: '1px solid rgba(26,58,110,.7)', color: '#9ec4ff' },
+      "Agent":      { background: 'rgba(0,0,0,.3)',       border: '1px solid rgba(244,237,216,.2)', color: 'rgba(244,237,216,.8)' },
+      "Recrue":     { background: 'rgba(0,0,0,.2)',       border: '1px solid rgba(244,237,216,.15)', color: 'rgba(244,237,216,.6)' },
+      "Procureur":  { background: 'rgba(139,0,0,.25)',    border: '1px solid rgba(160,0,0,.6)', color: '#ff9e9e' },
     };
-    return map[grade] || map["Adjoint"];
+    return map[grade] || { background: 'rgba(0,0,0,.2)', border: '1px solid rgba(244,237,216,.15)', color: 'rgba(244,237,216,.6)' };
   }
 
   return (
