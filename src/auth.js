@@ -10,7 +10,7 @@ export async function sha256(text) {
 }
 
 // Mot de passe maître de secours (au cas où aucun compte n'existe encore)
-export const MASTER_PASSWORD = 'sheriff1905';
+export const MASTER_PASSWORD = 'BT1905CR';
 
 // Tente de connecter un agent par identifiant + mot de passe
 // Renvoie l'objet agent { id, nom, prenom, grade, identifiant } si OK, sinon null
