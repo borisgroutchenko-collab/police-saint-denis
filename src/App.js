@@ -233,7 +233,7 @@ export default function App() {
         {section === 'notes'         && <Notes         showNotif={showNotif} targetId={newsTarget?.type === 'note' ? newsTarget?.id : null} onTargetOpened={() => setNewsTarget(null)} />}
         {section === 'coffres'       && <Coffres       showNotif={showNotif} />}
         {section === 'penal'         && <CodePenal />}
-        {section === 'effectif'      && <Effectif      showNotif={showNotif} />}
+        {section === 'effectif'      && <Effectif      showNotif={showNotif} currentAgent={currentAgent} />}
       </div>
     </div>
   );

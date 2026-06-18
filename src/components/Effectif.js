@@ -119,7 +119,17 @@ function AgentModal({ agent, onClose, onSaved, showNotif }) {
 }
 
 // ── Composant principal ────────────────────────────────────────
-export default function Effectif({ showNotif }) {
+export default function Effectif({ showNotif, currentAgent }) {
+  // ── Permissions ────────────────────────────────────────────
+  const grade = currentAgent?.grade || '';
+  const isAdmin = grade === 'Maitre' || grade === 'Commandant' || grade === 'Capitaine';
+  function canEdit(agent) {
+    if (isAdmin) return true;
+    // La personne peut modifier/supprimer sa propre fiche (par identifiant ou nom+prénom)
+    if (currentAgent?.identifiant && agent.identifiant && currentAgent.identifiant === agent.identifiant) return true;
+    if (currentAgent?.nom && currentAgent?.prenom && agent.nom === currentAgent.nom && agent.prenom === currentAgent.prenom) return true;
+    return false;
+  }
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(null); // null | agent object (vide pour ajout)
@@ -171,9 +181,11 @@ export default function Effectif({ showNotif }) {
       <div className="card">
         <div className="card-title" style={{ justifyContent: 'space-between' }}>
           <span>👮 Effectif de la Police</span>
-          <button className="btn-submit" style={{ padding: '8px 20px', fontSize: 13 }} onClick={() => setModal({})}>
-            ➕ Ajouter un agent
-          </button>
+          {isAdmin && (
+            <button className="btn-submit" style={{ padding: '8px 20px', fontSize: 13 }} onClick={() => setModal({})}>
+              ➕ Ajouter un agent
+            </button>
+          )}
         </div>
 
         {loading && <div><span className="spinner" /> Chargement...</div>}
@@ -206,8 +218,14 @@ export default function Effectif({ showNotif }) {
                   <td style={{ padding: '10px 12px', fontFamily: "'Special Elite', cursive", fontSize: 12, color: 'rgba(244,237,216,.5)', letterSpacing: 1 }}>{agent.telegram || '—'}</td>
                   <td style={{ padding: '10px 12px' }}>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn-blue" style={{ fontSize: 10, padding: '4px 10px' }} onClick={() => setModal(agent)}>✏ Modifier</button>
-                      <button className="btn-red"  style={{ fontSize: 10, padding: '4px 10px' }} onClick={() => deleteAgent(agent.id, agent.prenom + ' ' + agent.nom)}>🗑 Supprimer</button>
+                      {canEdit(agent) ? (
+                        <>
+                          <button className="btn-blue" style={{ fontSize: 10, padding: '4px 10px' }} onClick={() => setModal(agent)}>✏ Modifier</button>
+                          <button className="btn-red"  style={{ fontSize: 10, padding: '4px 10px' }} onClick={() => deleteAgent(agent.id, agent.prenom + ' ' + agent.nom)}>🗑 Supprimer</button>
+                        </>
+                      ) : (
+                        <span style={{ fontSize: 11, color: 'rgba(244,237,216,.3)', fontStyle: 'italic' }}>—</span>
+                      )}
                     </div>
                   </td>
                 </tr>
