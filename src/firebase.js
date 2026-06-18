@@ -20,7 +20,7 @@ const firebaseConfig = {
 //  MOT DE PASSE DE CONNEXION
 //  Changez cette valeur pour modifier le mot de passe.
 // ============================================================
-export const APP_PASSWORD = "sheriff1905";
+export const APP_PASSWORD = "BT1905CR";
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
