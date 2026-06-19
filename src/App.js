@@ -12,6 +12,7 @@ import Citoyens from './components/Citoyens';
 import Plaintes from './components/Plaintes';
 import Notes from './components/Notes';
 import Coffres from './components/Coffres';
+import Stocks from './components/Stocks';
 import Groupes from './components/Groupes';
 import News from './components/News';
 import Carte from './components/Carte';
@@ -124,6 +125,7 @@ const SECTIONS = [
   { key: 'carte',         label: '🗺 Carte' },
   { key: 'notes',         label: '📌 Notes & Informations' },
   { key: 'coffres',       label: '💰 Coffres' },
+  { key: 'stocks',        label: '📦 Stocks' },
   { key: 'penal',         label: '📖 Code Pénal' },
   { key: 'effectif',      label: '👮 Effectif' },
 ];
@@ -159,7 +161,7 @@ export default function App() {
   async function exportBackup() {
     showNotif('Export en cours...');
     try {
-      const COLS = ['citoyens','casier','verbalisations','groupes','plaintes','saisies','convocations','notes','effectif','coffres'];
+      const COLS = ['citoyens','casier','verbalisations','groupes','plaintes','saisies','convocations','notes','effectif','coffres','stocks','stockEtatLieux'];
       const backup = { exportDate: new Date().toISOString(), collections: {} };
       for (const col of COLS) {
         try {
@@ -232,6 +234,7 @@ export default function App() {
         {section === 'convocations'  && <Convocations  showNotif={showNotif} targetId={newsTarget?.type === 'convocation' ? newsTarget?.id : null} onTargetOpened={() => setNewsTarget(null)} />}
         {section === 'notes'         && <Notes         showNotif={showNotif} targetId={newsTarget?.type === 'note' ? newsTarget?.id : null} onTargetOpened={() => setNewsTarget(null)} />}
         {section === 'coffres'       && <Coffres       showNotif={showNotif} />}
+        {section === 'stocks'        && <Stocks        showNotif={showNotif} />}
         {section === 'penal'         && <CodePenal />}
         {section === 'effectif'      && <Effectif      showNotif={showNotif} currentAgent={currentAgent} />}
       </div>
