@@ -10,7 +10,7 @@ import {
 const GRADES = ['Commandant', 'Capitaine', 'Sergent', 'Agent', 'Recrue', 'Procureur'];
 
 // ── Modal ajout / édition ──────────────────────────────────────
-function AgentModal({ agent, onClose, onSaved, showNotif }) {
+function AgentModal({ agent, onClose, onSaved, showNotif, canSetGrade }) {
   const [form, setForm] = useState({
     nom:         agent?.nom         || '',
     prenom:      agent?.prenom      || '',
@@ -37,7 +37,7 @@ function AgentModal({ agent, onClose, onSaved, showNotif }) {
       const data = {
         nom: form.nom,
         prenom: form.prenom,
-        grade: form.grade,
+        grade: canSetGrade ? form.grade : (agent?.grade || ''),
         telegram: form.telegram,
         identifiant: ident,
         actif: form.actif,
@@ -80,10 +80,17 @@ function AgentModal({ agent, onClose, onSaved, showNotif }) {
         <div className="form-grid" style={{ marginBottom: 16 }}>
           <div>
             <label className="field-label">Grade</label>
-            <select className="field-select" value={form.grade} onChange={e => setForm(f => ({ ...f, grade: e.target.value }))}>
-              <option value="">— Sélectionner un grade —</option>
-              {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
+            {canSetGrade ? (
+              <select className="field-select" value={form.grade} onChange={e => setForm(f => ({ ...f, grade: e.target.value }))}>
+                <option value="">— Sélectionner un grade —</option>
+                {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            ) : (
+              <>
+                <input type="text" className="field-input" value={form.grade || '— Aucun —'} disabled style={{ opacity: 0.6, cursor: 'not-allowed' }} />
+                <div style={{ fontSize: 11, color: 'rgba(244,237,216,.4)', marginTop: 4, fontStyle: 'italic' }}>Seuls le Commandant, le Capitaine ou l'administration peuvent attribuer un grade.</div>
+              </>
+            )}
           </div>
           <div>
             <label className="field-label">N° Télégramme</label>
@@ -175,6 +182,7 @@ export default function Effectif({ showNotif, currentAgent }) {
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); load(); }}
           showNotif={showNotif}
+          canSetGrade={isAdmin}
         />
       )}
 
