@@ -9,6 +9,14 @@ import {
 // ── Grades disponibles ─────────────────────────────────────────
 const GRADES = ['Commandant', 'Capitaine', 'Sergent', 'Agent', 'Recrue', 'Procureur'];
 
+// ── Entraînements / qualifications ─────────────────────────────
+const ENTRAINEMENTS = [
+  { key: 'patrouille',  label: 'Patrouille',          court: 'Patrouille' },
+  { key: 'negociation', label: 'Négociations',         court: 'Négoc.' },
+  { key: 'escorte',     label: 'Escorte / Protection', court: 'Escorte' },
+  { key: 'otages',      label: "Prises d'otages",      court: 'Otages' },
+];
+
 // ── Modal ajout / édition ──────────────────────────────────────
 function AgentModal({ agent, onClose, onSaved, showNotif, canSetGrade }) {
   const [form, setForm] = useState({
@@ -137,6 +145,17 @@ export default function Effectif({ showNotif, currentAgent }) {
     if (currentAgent?.nom && currentAgent?.prenom && agent.nom === currentAgent.nom && agent.prenom === currentAgent.prenom) return true;
     return false;
   }
+
+  // Bascule un entraînement (réservé aux admins)
+  async function toggleEntrainement(agent, key) {
+    if (!isAdmin) return;
+    const ent = { ...(agent.entrainements || {}) };
+    ent[key] = !ent[key];
+    try {
+      await updateDoc(doc(db, 'effectif', agent.id), { entrainements: ent });
+      setAgents(list => list.map(a => a.id === agent.id ? { ...a, entrainements: ent } : a));
+    } catch (e) { showNotif('Erreur mise à jour entraînement', true); }
+  }
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(null); // null | agent object (vide pour ajout)
@@ -208,9 +227,13 @@ export default function Effectif({ showNotif, currentAgent }) {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(201,168,76,.3)' }}>
-                {['Grade', 'Nom', 'Prénom', 'N° Télégramme', 'Actions'].map(h => (
+                {['Grade', 'Nom', 'Prénom', 'N° Télégramme'].map(h => (
                   <th key={h} style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'var(--gold)', letterSpacing: 1, textAlign: 'left', padding: '8px 12px', textTransform: 'uppercase' }}>{h}</th>
                 ))}
+                {ENTRAINEMENTS.map(e => (
+                  <th key={e.key} title={e.label} style={{ fontFamily: "'Special Elite', cursive", fontSize: 10, color: 'var(--gold)', letterSpacing: 1, textAlign: 'center', padding: '8px 6px', textTransform: 'uppercase' }}>{e.court}</th>
+                ))}
+                <th style={{ fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'var(--gold)', letterSpacing: 1, textAlign: 'left', padding: '8px 12px', textTransform: 'uppercase' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -224,6 +247,26 @@ export default function Effectif({ showNotif, currentAgent }) {
                   <td style={{ padding: '10px 12px', fontFamily: "'Playfair Display', serif", fontSize: 15, color: 'var(--paper)' }}>{agent.nom}</td>
                   <td style={{ padding: '10px 12px', fontSize: 14, color: 'rgba(244,237,216,.8)' }}>{agent.prenom}</td>
                   <td style={{ padding: '10px 12px', fontFamily: "'Special Elite', cursive", fontSize: 12, color: 'rgba(244,237,216,.5)', letterSpacing: 1 }}>{agent.telegram || '—'}</td>
+                  {ENTRAINEMENTS.map(e => {
+                    const ok = !!(agent.entrainements && agent.entrainements[e.key]);
+                    return (
+                      <td key={e.key} style={{ padding: '10px 6px', textAlign: 'center' }}>
+                        <span
+                          onClick={() => toggleEntrainement(agent, e.key)}
+                          title={isAdmin ? (ok ? 'Cliquer pour retirer' : 'Cliquer pour valider') : e.label}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            width: 24, height: 24, borderRadius: '50%', fontSize: 13,
+                            cursor: isAdmin ? 'pointer' : 'default',
+                            border: '1px solid ' + (ok ? '#27ae60' : 'rgba(244,237,216,.2)'),
+                            background: ok ? 'rgba(39,174,96,.25)' : 'transparent',
+                            color: ok ? '#7fe8a0' : 'rgba(244,237,216,.25)',
+                          }}>
+                          {ok ? '✓' : '—'}
+                        </span>
+                      </td>
+                    );
+                  })}
                   <td style={{ padding: '10px 12px' }}>
                     <div style={{ display: 'flex', gap: 6 }}>
                       {canEdit(agent) ? (
