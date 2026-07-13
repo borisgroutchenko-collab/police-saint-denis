@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import './index.css';
 import { db } from './firebase';
 import { authenticate, checkMaster } from './auth';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
 import { useNotif } from './hooks/useNotif';
 import Verbalization from './components/Verbalization';
 import Casier from './components/Casier';
@@ -183,6 +183,36 @@ export default function App() {
     } catch (e) { showNotif('Erreur : ' + e.message, true); }
   }
 
+  // ── Import d'un backup JSON ──────────────────────────────────
+  async function importBackup(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!window.confirm('Importer ce backup ? Les documents portant le meme identifiant seront ecrases.')) return;
+    showNotif('Import en cours, patientez...');
+    try {
+      const text = await file.text();
+      const backup = JSON.parse(text);
+      const cols = backup.collections || {};
+      let total = 0;
+      for (const colName of Object.keys(cols)) {
+        const docs = cols[colName] || [];
+        for (const item of docs) {
+          const data = { ...item };
+          const id = data._id;
+          delete data._id;
+          if (!id) continue;
+          await setDoc(doc(db, colName, id), data);
+          total++;
+        }
+      }
+      showNotif('Import termine : ' + total + ' document(s) restaures !');
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+      showNotif('Erreur import : ' + err.message, true);
+    }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       {/* Notification */}
@@ -210,6 +240,13 @@ export default function App() {
             style={{ marginRight: 6, background: 'rgba(201,168,76,.15)', border: '1px solid rgba(201,168,76,.4)', borderRadius: 2, padding: '4px 12px', fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'var(--gold)', cursor: 'pointer', letterSpacing: 1 }}
             title="Exporter une sauvegarde JSON"
           >💾 Backup</button>
+          <label
+            style={{ marginRight: 6, background: 'rgba(39,174,96,.15)', border: '1px solid rgba(39,174,96,.5)', borderRadius: 2, padding: '4px 12px', fontFamily: "'Special Elite', cursive", fontSize: 11, color: '#7fe8a0', cursor: 'pointer', letterSpacing: 1 }}
+            title="Importer une sauvegarde JSON"
+          >
+            📥 Importer
+            <input type="file" accept="application/json,.json" onChange={importBackup} style={{ display: 'none' }} />
+          </label>
           {currentAgent && (
             <span style={{ marginRight: 10, fontFamily: "'Special Elite', cursive", fontSize: 11, color: 'rgba(201,168,76,.85)', letterSpacing: 1 }}
               title="Agent connecté">

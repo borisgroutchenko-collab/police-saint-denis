@@ -1,26 +1,20 @@
 // ============================================================
 //  CONFIGURATION FIREBASE
-//  Remplacez les valeurs ci-dessous par celles de votre projet.
-//  Console Firebase → Votre projet → Paramètres → Config web
+//  Projet : police-de-saint-denis
+//  Console Firebase → Paramètres → Config web
 // ============================================================
 
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey:            "AIzaSyCjhCVWg18qw5Tb_xfFvcd9bqWb31jSqxE",
-  authDomain:        "police-crossroad.firebaseapp.com",
-  projectId:         "police-crossroad",
-  storageBucket:     "police-crossroad.firebasestorage.app",
-  messagingSenderId: "591957101819",
-  appId:             "1:591957101819:web:59acce6d4826557e69f45e",
+  apiKey:            "AIzaSyDw4Ud05KjFNC_wMVbW31OxFL99WnHrwD0",
+  authDomain:        "police-de-saint-denis.firebaseapp.com",
+  projectId:         "police-de-saint-denis",
+  storageBucket:     "police-de-saint-denis.firebasestorage.app",
+  messagingSenderId: "380234875387",
+  appId:             "1:380234875387:web:98d557faa5952600878b5e",
 };
-
-// ============================================================
-//  MOT DE PASSE DE CONNEXION
-//  Changez cette valeur pour modifier le mot de passe.
-// ============================================================
-export const APP_PASSWORD = "BT1905CR";
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
